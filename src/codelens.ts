@@ -171,7 +171,8 @@ export function readTableTestConfigFromWorkspace(): TableTestConfig {
     nameFields: configuration.get(configurationKeys.nameFields),
     showFunctionRun: configuration.get(configurationKeys.showFunctionRun),
     showCaseRun: configuration.get(configurationKeys.showCaseRun),
-    testingApiEnabled: configuration.get(configurationKeys.testingApiEnabled)
+    testingApiEnabled: configuration.get(configurationKeys.testingApiEnabled),
+    testingApiTreeMode: configuration.get(configurationKeys.testingApiTreeMode)
   });
 }
 

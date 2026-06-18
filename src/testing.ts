@@ -2,8 +2,8 @@
  * VSCode Testing API 实验原型。
  *
  * 该模块把 parser 识别出的 Go test/table case 映射到 VSCode Test Explorer。它是里程碑 5 的评估
- * 原型，默认由配置关闭：v0.1 仍以 CodeLens 作为主入口，Testing API 只用于比较测试树 UX、复用
- * runner 目标模型，并验证后续接入成本。
+ * 原型。当前默认启用 Testing API，以便在 Test Explorer 中展示 Go Bench 的 module/package/file
+ * 测试树，同时继续复用 runner 目标模型和 CodeLens 入口。
  */
 
 import * as vscode from 'vscode';

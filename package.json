@@ -89,7 +89,7 @@
         },
         "goBench.tableTests.testingApi.enabled": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Enable the experimental VSCode Testing API tree for Go Bench table-driven tests."
         },
         "goBench.tableTests.testingApi.treeMode": {

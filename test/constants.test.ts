@@ -27,7 +27,7 @@ describe('extension skeleton constants', () => {
       nameFields: ['name', 'desc', 'caseName', 'title'],
       showFunctionRun: true,
       showCaseRun: true,
-      testingApiEnabled: false,
+      testingApiEnabled: true,
       testingApiTreeMode: 'goBench'
     });
   });

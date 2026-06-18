@@ -5,6 +5,7 @@
 - Test Explorer 根节点从 `Go Bench Table Tests` 改为 `Go Bench`。
 - Test Explorer 不再把 `TestXxx` 函数直接作为根层级节点。
 - Testing API 测试树改为 Go module -> package/directory -> `_test.go` file -> `TestXxx` -> table case。
+- `goBench.tableTests.testingApi.enabled` 改为默认开启，安装后默认显示 Go Bench Test Explorer 树。
 - 新增 `goBench.tableTests.testingApi.treeMode`，默认 `goBench`，可切换到 `standardGo` 函数级树。
 - 当前文件刷新会把文件节点合并到已有 Go module 和 package/directory 分组中。
 - 当前文件没有可运行测试时，会移除文件节点，并裁剪空 Go module 和 package/directory 分组。

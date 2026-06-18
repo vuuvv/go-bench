@@ -1,5 +1,9 @@
 # VSCode Testing API 评估
 
+> 当前状态：该评估结论已被后续产品决策取代。当前实现默认开启
+> `goBench.tableTests.testingApi.enabled`，并在 Test Explorer 中显示 `Go Bench`
+> 测试树；此文档保留为早期评估记录。
+
 ## 评估结论
 
 建议 v0.1 不默认包含 VSCode Testing API 测试树，继续以 CodeLens 作为主入口。Testing API 原型保留为实验能力，通过 `goBench.tableTests.testingApi.enabled` 手动开启，用于后续验证测试树 UX、运行状态呈现和与官方 Go 插件的共存策略。
@@ -11,7 +15,7 @@
 - 将可静态解析的 table case 映射为函数节点下的子节点。
 - 复用现有 `GoTestRunTarget`，运行和调试行为与 CodeLens 保持一致。
 - 支持文档编辑、保存和配置变化后的测试树刷新。
-- 使用 `goBench.tableTests.testingApi.enabled` 控制开关，默认关闭。
+- 早期原型使用 `goBench.tableTests.testingApi.enabled` 控制开关，当时默认值为 `false`。
 - 使用 `Go Bench: Refresh Test Tree` 命令或 Test Explorer refresh 按钮重新扫描整个 workspace。
 
 ## UX 对比
@@ -27,7 +31,7 @@
 
 ## 设计取舍
 
-- Testing API 原型默认关闭，避免用户在 v0.1 阶段看到两套测试入口造成困惑。
+- 早期评估中曾让 Testing API 原型默认不启用，避免用户在 v0.1 阶段看到两套测试入口造成困惑。
 - 测试树节点模型放在 `src/testingTargets.ts`，不依赖 VSCode API，便于单元测试覆盖。
 - `src/testing.ts` 只做 VSCode 适配：创建 controller、刷新文档节点、处理 Test Explorer 运行请求。
 - 测试树运行复用 runner 的命令构造和执行能力；Testing API 路径额外启用 `go test -json`，用于把结果映射回子测试节点。

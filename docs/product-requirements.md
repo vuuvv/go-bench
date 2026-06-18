@@ -213,6 +213,7 @@ go test ./path/to/package -run '^TestName$/^case name$'
   "goBench.tableTests.runInTerminal": true,
   "goBench.tableTests.extraGoTestArgs": [],
   "goBench.tableTests.packagePattern": "directory",
+  "goBench.tableTests.testingApi.enabled": true,
   "goBench.tableTests.testingApi.treeMode": "goBench"
 }
 ```
