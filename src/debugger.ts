@@ -8,12 +8,6 @@
 import { dirname } from 'node:path';
 import { buildRunPattern, type GoTestRunTarget } from './runner';
 
-/** 调试启动需要的最小 workspace 信息。 */
-export type GoTestDebugOptions = {
-  /** VSCode workspace root，用于构造相对 package 参数和调试 cwd。 */
-  workspaceRoot: string;
-};
-
 /** 可直接交给 VSCode Go 扩展调试适配器的 launch configuration。 */
 export type GoTestDebugConfiguration = {
   name: string;
@@ -32,17 +26,17 @@ export type GoTestDebugConfiguration = {
  * testing 二进制参数形式，而不是 `go test -run`，所以这里只复用 pattern，不复用完整 shell 命令。
  */
 export function buildGoTestDebugConfiguration(
-  target: GoTestRunTarget,
-  options: GoTestDebugOptions
+  target: GoTestRunTarget
 ): GoTestDebugConfiguration {
   const packageDir = target.packageDir ?? dirname(target.file);
+  const runPattern = buildRunPattern(target.testName, target.subtestPath);
   return {
     name: `Debug ${target.label}`,
     type: 'go',
     request: 'launch',
     mode: 'test',
     program: packageDir,
-    cwd: options.workspaceRoot,
-    args: ['-test.run', buildRunPattern(target.testName, target.subtestPath)]
+    cwd: packageDir,
+    args: [`-test.run=${runPattern}`]
   };
 }

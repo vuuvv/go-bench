@@ -5,7 +5,7 @@
 - 编辑器 CodeLens 为函数级测试新增 `Debug Test`。
 - 编辑器 CodeLens 为已识别 table case 新增 `Debug Case`。
 - 新增命令 `goBench.debugTest`，通过 VSCode debug API 启动 Go test debug session。
-- 新增 Go test debug 配置构造模块，使用 `type: "go"`、`request: "launch"`、`mode: "test"` 和 `-test.run`。
+- 新增 Go test debug 配置构造模块，使用 `type: "go"`、`request: "launch"`、`mode: "test"` 和 `-test.run=<pattern>`。
 - Test Explorer 新增 Debug profile，允许从函数节点或 case 节点启动调试。
 - Debug 入口复用 Run 入口的 `GoTestRunTarget` 和 `buildRunPattern`，保证运行和调试选中同一个测试目标。
 - 补充命令常量、manifest、CodeLens target 和 debug 配置构造测试。
@@ -25,7 +25,7 @@
 ## 实现思路与设计取舍
 
 - Debug 入口不直接执行 `go test`，而是生成 VSCode Go 调试配置并交给官方 Go 调试适配器。
-- 调试配置使用 `mode: "test"`，`program` 指向 package 目录，`args` 使用 `['-test.run', pattern]`。
+- 调试配置使用 `mode: "test"`，`program` 和 `cwd` 指向 package 目录，`args` 使用 `['-test.run=<pattern>']`。
 - `pattern` 由 runner 的 `buildRunPattern` 构造，和 Run 入口保持同一套空白、斜杠和正则转义规则。
 - CodeLens 的显示开关沿用现有 `showFunctionRun` 和 `showCaseRun`：如果某类运行入口不显示，对应 Debug 入口也不显示。
 - Test Explorer 调试合集节点时，只启动合集节点对应的测试函数调试会话，不为子 case 重复启动多个调试会话。
@@ -69,7 +69,7 @@
 - 用途：确认编辑器调试入口能启动目标测试。
 - 入口：打开 Go `_test.go` 文件，点击 `Debug Test` 或 `Debug Case`。
 - 预期结果：VSCode 启动 Go debug session，目标测试函数或 table case 被调试。
-- 失败优先检查：官方 Go 扩展是否安装、Delve 是否可用、output channel 中的 debug configuration 是否包含正确 `-test.run`。
+- 失败优先检查：官方 Go 扩展是否安装、Delve 是否可用、output channel 中的 debug configuration 是否包含正确 `-test.run=<pattern>`。
 
 ### 手动验证 Test Explorer Debug
 

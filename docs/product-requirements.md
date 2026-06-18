@@ -230,11 +230,12 @@ go test ./path/to/package -run '^TestName$/^case name$'
 
 测试结果输出行为：
 
-- 使用 Testing API 运行测试时，`go test` 的 stdout、stderr 和失败详情必须写入 VSCode Test Results 视图关联的 test run。
+- 使用任意插件入口运行测试时，包括 CodeLens 和 Testing API，`go test` 的 stdout、stderr 和失败详情必须写入 VSCode Test Results 视图关联的 test run。
 - Test Results 视图中应能看到本次运行的完整输出，并能定位到对应失败子测试。
-- Output Channel 可以作为诊断补充保留，但不能作为 Testing API 运行后的唯一结果输出位置。
+- Output Channel 可以作为诊断补充保留，但不能作为测试运行后的唯一结果输出位置。
 - 失败子测试应尽可能生成与子测试节点关联的失败 message，方便用户从 Test Results 直接跳转或查看上下文。
 - 如果 `go test` 输出无法精确映射到某个子测试，至少必须写入当前 test run 的全局输出，避免用户只能到普通 output view 中查找结果。
+- CodeLens 触发的 `Run Test` 和 `Run Case` 也必须创建 Testing API `TestRun`，让运行结果进入 Test Results 视图。
 
 ### 9.5 调试入口
 
@@ -253,7 +254,7 @@ go test ./path/to/package -run '^TestName$/^case name$'
 - Go 调试配置应使用 `type: "go"`、`request: "launch"`、`mode: "test"`。
 - 调试整个测试函数时，应只调试目标 `TestXxx`。
 - 调试单个 table case 时，应传入与 Run Case 等价的 `-test.run` pattern。
-- 调试启动失败、无法确定 workspace folder 或缺少 Go 调试环境时，应给出清晰错误提示，并在 `Go Bench` output channel 保留诊断信息。
+- 调试启动失败、启动请求被接受但没有实际 debug session、无法确定 workspace folder 或缺少 Go 调试环境时，应给出清晰错误提示，并在 `Go Bench` output channel 保留诊断信息。
 
 Test Explorer 入口：
 
@@ -274,6 +275,7 @@ Test Explorer 入口：
 - `runner`：`go test` 命令构造与执行。
 - `codelens`：编辑器运行入口提供者。
 - `debugger`：Go test debug 配置构造和 VSCode 调试启动入口。
+- `testResults`：CodeLens 等非 Test Explorer 入口写入 VSCode Test Results 的适配层。
 - `testing`：可选的 VSCode Testing API 集成。
 
 ### 10.2 解析策略
@@ -660,6 +662,27 @@ runner 必须生成兼容 Go subtest 选择规则的正则路径：
 - 自动化测试覆盖 debug 配置构造、CodeLens debug target、命令常量和 manifest 贡献。
 - 完整测试套件通过，并在工作文档中记录结果。
 - 里程碑文档更新当前可进行操作，例如如何点击 Debug CodeLens、如何从 Test Explorer 启动 Debug、如何检查 `-test.run` pattern。
+
+### 里程碑 10：统一测试输出与调试启动修复
+
+- 修复 CodeLens 触发的 `Run Test` 和 `Run Case` 只写入普通 output view、没有写入 Test Results 视图的问题。
+- 为 CodeLens 运行入口创建 Testing API `TestRun`，将 stdout、stderr、失败详情和最终状态写入 VSCode Test Results。
+- CodeLens 运行仍保留 `Go Bench` output channel 作为辅助诊断，但不得再作为唯一输出位置。
+- 修复 Debug 入口只输出 debug configuration、没有实际进入 debug session 的问题。
+- Debug 配置应使用 package 目录作为 `cwd`，并以 Go test debug adapter 可稳定识别的 `-test.run=<pattern>` 形式传递测试过滤条件。
+- Debug 启动后必须确认对应 debug session 已开始；如果 VSCode 接受请求但没有实际 session，应提示用户并保留诊断。
+- 同步更新 PRD、工作文档和相关自动化测试。
+
+退出标准：
+
+- 点击 CodeLens `Run Test` 后，运行输出和最终状态显示在 VSCode Test Results 视图中。
+- 点击 CodeLens `Run Case` 后，运行输出和最终状态显示在 VSCode Test Results 视图中。
+- `Go Bench` output channel 仍可用于排查命令、parser 或环境问题，但不是测试结果唯一位置。
+- 点击 `Debug Test` 或 `Debug Case` 后，VSCode 实际启动对应 Go test debug session。
+- 如果 debug request 被接受但没有产生 debug session，用户能看到明确提示。
+- 自动化测试覆盖 debug 配置参数形式和已有运行/调试目标契约。
+- 完整测试套件通过，并在工作文档中记录结果。
+- 里程碑文档更新当前可进行操作，例如如何验证 CodeLens Run 的 Test Results 输出、如何验证 Debug session 是否真正启动。
 
 ## 15. 测试 fixture 计划
 

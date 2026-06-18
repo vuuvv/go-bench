@@ -22,14 +22,14 @@ describe('go test debug configuration', () => {
       label: 'TestNormalize/case with spaces'
     };
 
-    assert.deepEqual(buildGoTestDebugConfiguration(target, { workspaceRoot }), {
+    assert.deepEqual(buildGoTestDebugConfiguration(target), {
       name: 'Debug TestNormalize/case with spaces',
       type: 'go',
       request: 'launch',
       mode: 'test',
       program: join(workspaceRoot, 'pkg'),
-      cwd: workspaceRoot,
-      args: ['-test.run', '^TestNormalize$/^case_with_spaces$/^regex_\\.\\*_chars$']
+      cwd: join(workspaceRoot, 'pkg'),
+      args: ['-test.run=^TestNormalize$/^case_with_spaces$/^regex_\\.\\*_chars$']
     });
   });
 });

@@ -15,7 +15,7 @@ import {
   type GoTestJsonEvent,
   type GoTestJsonStreamRecord
 } from './goTestJson';
-import { buildGoTestDebugConfiguration } from './debugger';
+import { buildGoTestDebugConfiguration, type GoTestDebugConfiguration } from './debugger';
 import { GoHelperParser, isGoTestFile } from './parser';
 import type { GoTestFileParseResult, GoTestParser, SourceRange } from './parser';
 import { runGoTestTarget, type GoTestRunTarget } from './runner';
@@ -299,13 +299,11 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
         continue;
       }
 
-      const configuration = buildGoTestDebugConfiguration(group.root.target, {
-        workspaceRoot: workspaceFolder.uri.fsPath
-      });
+      const configuration = buildGoTestDebugConfiguration(group.root.target);
       this.output.appendLine('');
       this.output.appendLine(`Go Bench Testing API debug: ${group.root.target.label}`);
       this.output.appendLine(`Go Bench debug configuration: ${JSON.stringify(configuration)}`);
-      const started = await vscode.debug.startDebugging(workspaceFolder, configuration);
+      const started = await startDebuggingAndVerify(workspaceFolder, configuration, group.root.target.label);
       if (!started) {
         void vscode.window.showErrorMessage(`Go Bench: failed to start debugging ${group.root.target.label}.`);
       }
@@ -544,4 +542,38 @@ function toDurationMs(elapsed: number | undefined): number | undefined {
     return undefined;
   }
   return Math.max(0, Math.round(elapsed * 1000));
+}
+
+async function startDebuggingAndVerify(
+  workspaceFolder: vscode.WorkspaceFolder,
+  configuration: GoTestDebugConfiguration,
+  label: string
+): Promise<boolean> {
+  let matchedSession = false;
+  const sessionStarted = new Promise<boolean>(resolve => {
+    const timer = setTimeout(() => {
+      subscription.dispose();
+      resolve(matchedSession);
+    }, 2_000);
+    const subscription = vscode.debug.onDidStartDebugSession(session => {
+      if (session.configuration.name !== configuration.name) {
+        return;
+      }
+      matchedSession = true;
+      clearTimeout(timer);
+      subscription.dispose();
+      resolve(true);
+    });
+  });
+
+  const accepted = await vscode.debug.startDebugging(workspaceFolder, configuration);
+  if (!accepted) {
+    return false;
+  }
+
+  const started = await sessionStarted;
+  if (!started) {
+    void vscode.window.showWarningMessage(`Go Bench: debug request was accepted but no debug session started for ${label}.`);
+  }
+  return started;
 }

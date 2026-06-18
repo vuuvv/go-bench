@@ -10,10 +10,11 @@ import { dirname } from 'node:path';
 import * as vscode from 'vscode';
 import { commands, configurationKeys, outputChannelName } from './constants';
 import { GoTestCodeLensProvider } from './codelens';
-import { buildGoTestDebugConfiguration } from './debugger';
+import { buildGoTestDebugConfiguration, type GoTestDebugConfiguration } from './debugger';
 import { isGoTestFile } from './parser';
-import { runGoTestTarget, type GoTestRunTarget } from './runner';
+import type { GoTestRunTarget } from './runner';
 import { GoBenchTestingApiPrototypeManager } from './testing';
+import { GoBenchCodeLensTestResults } from './testResults';
 import { normalizeTableTestConfig } from './tableTestConfig';
 
 /**
@@ -28,14 +29,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
   outputChannel.appendLine('Go Bench activated.');
 
+  const codeLensTestResults = new GoBenchCodeLensTestResults({ output: outputChannel });
+
   const noopCommand = vscode.commands.registerCommand(commands.noop, () => {
     outputChannel.appendLine('Go Bench no-op command executed.');
     void vscode.window.showInformationMessage('Go Bench is active.');
   });
 
   const runTestCommand = vscode.commands.registerCommand(commands.runTest, async (target: unknown) => {
-    outputChannel.show(true);
-
     try {
       const normalizedTarget = normalizeRunTarget(target);
       const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(normalizedTarget.file));
@@ -44,10 +45,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      const result = await runGoTestTarget(normalizedTarget, {
-        workspaceRoot: workspaceFolder.uri.fsPath,
-        output: outputChannel
-      });
+      const result = await codeLensTestResults.runTarget(normalizedTarget, workspaceFolder.uri.fsPath);
 
       if (!result.success) {
         void vscode.window.showErrorMessage(`Go Bench: go test failed with exit code ${result.code ?? 'unknown'}.`);
@@ -59,8 +57,6 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   const debugTestCommand = vscode.commands.registerCommand(commands.debugTest, async (target: unknown) => {
-    outputChannel.show(true);
-
     try {
       const normalizedTarget = normalizeRunTarget(target);
       const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(normalizedTarget.file));
@@ -69,14 +65,12 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      const configuration = buildGoTestDebugConfiguration(normalizedTarget, {
-        workspaceRoot: workspaceFolder.uri.fsPath
-      });
+      const configuration = buildGoTestDebugConfiguration(normalizedTarget);
       outputChannel.appendLine('');
       outputChannel.appendLine(`Debugging ${normalizedTarget.label}`);
       outputChannel.appendLine(`Go Bench debug configuration: ${JSON.stringify(configuration)}`);
 
-      const started = await vscode.debug.startDebugging(workspaceFolder, configuration);
+      const started = await startDebuggingAndVerify(workspaceFolder, configuration, normalizedTarget.label);
       if (!started) {
         void vscode.window.showErrorMessage('Go Bench: failed to start Go test debugging.');
       }
@@ -158,6 +152,7 @@ export function activate(context: vscode.ExtensionContext): void {
     noopCommand,
     runTestCommand,
     debugTestCommand,
+    codeLensTestResults,
     refreshTestTreeCommand,
     refreshCurrentFileTestTreeCommand,
     goTestCodeLensProvider,
@@ -174,6 +169,40 @@ function normalizeRefreshFileArgument(fileArg: unknown): string | undefined {
     return fileArg;
   }
   return vscode.window.activeTextEditor?.document.uri.fsPath;
+}
+
+async function startDebuggingAndVerify(
+  workspaceFolder: vscode.WorkspaceFolder,
+  configuration: GoTestDebugConfiguration,
+  label: string
+): Promise<boolean> {
+  let matchedSession = false;
+  const sessionStarted = new Promise<boolean>(resolve => {
+    const timer = setTimeout(() => {
+      subscription.dispose();
+      resolve(matchedSession);
+    }, 2_000);
+    const subscription = vscode.debug.onDidStartDebugSession(session => {
+      if (session.configuration.name !== configuration.name) {
+        return;
+      }
+      matchedSession = true;
+      clearTimeout(timer);
+      subscription.dispose();
+      resolve(true);
+    });
+  });
+
+  const accepted = await vscode.debug.startDebugging(workspaceFolder, configuration);
+  if (!accepted) {
+    return false;
+  }
+
+  const started = await sessionStarted;
+  if (!started) {
+    void vscode.window.showWarningMessage(`Go Bench: debug request was accepted but no debug session started for ${label}.`);
+  }
+  return started;
 }
 
 /** 从 VSCode 配置读取实验 Testing API 开关。 */
