@@ -9,7 +9,12 @@ import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import type { GoTestFileParseResult, SourceRange } from '../src/parser';
-import { createGoTestTreeNodeId, createGoTestTreeNodes } from '../src/testingTargets';
+import {
+  createGoTestFileNodeId,
+  createGoTestPackageNodeId,
+  createGoTestTreeNodeId,
+  createGoTestTreeNodes
+} from '../src/testingTargets';
 
 const range: SourceRange = {
   start: { line: 10, character: 2 },
@@ -50,16 +55,32 @@ function parseResult(): GoTestFileParseResult {
 }
 
 describe('Testing API target tree generation', () => {
-  it('creates function roots with table case children and runner targets', () => {
-    const [root] = createGoTestTreeNodes(parseResult(), {
-      showFunctionRun: true,
-      showCaseRun: true
-    });
+  it('creates package and file roots before function and table case targets', () => {
+    const [packageNode] = createGoTestTreeNodes(
+      parseResult(),
+      {
+        showFunctionRun: true,
+        showCaseRun: true
+      },
+      { workspaceRoot: join('/', 'workspace', 'repo') }
+    );
 
-    assert.equal(root?.id, createGoTestTreeNodeId(file, 'TestNormalize'));
-    assert.equal(root?.label, 'TestNormalize');
-    assert.equal(root?.kind, 'function');
-    assert.deepEqual(root?.runTarget, {
+    assert.equal(packageNode?.id, createGoTestPackageNodeId(join('/', 'workspace', 'repo', 'pkg')));
+    assert.equal(packageNode?.label, './pkg');
+    assert.equal(packageNode?.kind, 'package');
+    assert.equal(packageNode?.runTarget, undefined);
+
+    const [fileNode] = packageNode?.children ?? [];
+    assert.equal(fileNode?.id, createGoTestFileNodeId(file));
+    assert.equal(fileNode?.label, 'normalize_test.go');
+    assert.equal(fileNode?.kind, 'file');
+    assert.equal(fileNode?.runTarget, undefined);
+
+    const [testFunction] = fileNode?.children ?? [];
+    assert.equal(testFunction?.id, createGoTestTreeNodeId(file, 'TestNormalize'));
+    assert.equal(testFunction?.label, 'TestNormalize');
+    assert.equal(testFunction?.kind, 'function');
+    assert.deepEqual(testFunction?.runTarget, {
       file,
       packageDir: join('/', 'workspace', 'repo', 'pkg'),
       testName: 'TestNormalize',
@@ -67,11 +88,11 @@ describe('Testing API target tree generation', () => {
       label: 'TestNormalize'
     });
 
-    const [child] = root?.children ?? [];
+    const [child] = testFunction?.children ?? [];
     assert.equal(child?.id, createGoTestTreeNodeId(file, 'TestNormalize', ['empty input']));
     assert.equal(child?.label, 'empty input');
     assert.equal(child?.kind, 'case');
-    assert.deepEqual(child?.runTarget.subtestPath, ['empty input']);
+    assert.deepEqual(child?.runTarget?.subtestPath, ['empty input']);
   });
 
   it('honors Testing API prototype visibility switches', () => {
@@ -81,6 +102,8 @@ describe('Testing API target tree generation', () => {
       showFunctionRun: true,
       showCaseRun: false
     });
-    assert.deepEqual(root?.children, []);
+    const [fileNode] = root?.children ?? [];
+    const [testFunction] = fileNode?.children ?? [];
+    assert.deepEqual(testFunction?.children, []);
   });
 });

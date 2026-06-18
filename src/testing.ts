@@ -19,7 +19,12 @@ import { buildGoTestDebugConfiguration, type GoTestDebugConfiguration } from './
 import { GoHelperParser, isGoTestFile } from './parser';
 import type { GoTestFileParseResult, GoTestParser, SourceRange } from './parser';
 import { runGoTestTarget, type GoTestRunTarget } from './runner';
-import { createGoTestTreeNodes, type GoTestTreeNode } from './testingTargets';
+import {
+  createGoTestFileNodeId,
+  createGoTestTreeNodes,
+  type GoTestTreeNode,
+  type GoTestTreeNodeKind
+} from './testingTargets';
 import type { TableTestConfig } from './tableTestConfig';
 
 const controllerId = 'go-bench.tableTests';
@@ -40,6 +45,7 @@ export type GoBenchTestingApiPrototypeOptions = {
 type RegisteredTestItem = {
   item: vscode.TestItem;
   target: GoTestRunTarget;
+  kind: Extract<GoTestTreeNodeKind, 'function' | 'case'>;
 };
 
 type TestRunGroup = {
@@ -108,6 +114,7 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
   private readonly getConfig: () => TableTestConfig;
   private readonly output: vscode.OutputChannel;
   private readonly registeredItems = new Map<string, RegisteredTestItem>();
+  private readonly testItems = new Map<string, vscode.TestItem>();
   private readonly disposables: vscode.Disposable[] = [];
 
   public constructor(options: GoBenchTestingApiPrototypeOptions) {
@@ -153,7 +160,9 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
         this.parser instanceof GoHelperParser ? new GoHelperParser({ nameFields: config.nameFields }) : this.parser;
       const parseResult = await parser.parseTestFile(file, document.getText());
       this.outputDiagnostics(file, parseResult);
-      this.replaceFileItems(document.uri, file, createGoTestTreeNodes(parseResult, config));
+      this.replaceFileItems(document.uri, file, createGoTestTreeNodes(parseResult, config, {
+        workspaceRoot: vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath
+      }));
     } catch (error) {
       this.output.appendLine(`Go Bench Testing API parse failed for ${file}: ${String(error)}`);
       this.removeFileItems(file);
@@ -208,19 +217,26 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
       disposable.dispose();
     }
     this.registeredItems.clear();
+    this.testItems.clear();
   }
 
   private replaceFileItems(uri: vscode.Uri, file: string, nodes: GoTestTreeNode[]): void {
     this.removeFileItems(file);
     for (const node of nodes) {
-      this.controller.items.add(this.createTestItem(uri, node));
+      this.mergeTestItem(uri, node);
     }
   }
 
   private createTestItem(uri: vscode.Uri, node: GoTestTreeNode): vscode.TestItem {
-    const item = this.controller.createTestItem(node.id, node.label, uri);
-    item.range = toVsCodeRange(node.range);
-    this.registeredItems.set(node.id, { item, target: node.runTarget });
+    const itemUri = node.file ? vscode.Uri.file(node.file) : uri;
+    const item = this.controller.createTestItem(node.id, node.label, itemUri);
+    if (node.range) {
+      item.range = toVsCodeRange(node.range);
+    }
+    this.testItems.set(node.id, item);
+    if (node.runTarget && (node.kind === 'function' || node.kind === 'case')) {
+      this.registeredItems.set(node.id, { item, target: node.runTarget, kind: node.kind });
+    }
 
     for (const child of node.children) {
       item.children.add(this.createTestItem(uri, child));
@@ -229,16 +245,30 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
     return item;
   }
 
-  private removeFileItems(file: string): void {
-    const prefix = `${encodeURIComponent('go-bench')}/${encodeURIComponent(file)}/`;
-    for (const [id, registered] of [...this.registeredItems]) {
-      if (!id.startsWith(prefix)) {
-        continue;
-      }
-      registered.item.parent?.children.delete(id);
-      this.controller.items.delete(id);
-      this.registeredItems.delete(id);
+  private mergeTestItem(uri: vscode.Uri, node: GoTestTreeNode): vscode.TestItem {
+    const existing = this.testItems.get(node.id);
+    if (!existing) {
+      const item = this.createTestItem(uri, node);
+      this.controller.items.add(item);
+      return item;
     }
+
+    for (const child of node.children) {
+      existing.children.add(this.createTestItem(uri, child));
+    }
+    return existing;
+  }
+
+  private removeFileItems(file: string): void {
+    const fileItem = this.testItems.get(createGoTestFileNodeId(file));
+    if (!fileItem) {
+      return;
+    }
+
+    const parent = fileItem.parent;
+    this.deleteItemTree(fileItem);
+    parent?.children.delete(fileItem.id);
+    this.pruneEmptyAncestors(parent);
   }
 
   private clearAllItems(): void {
@@ -246,12 +276,8 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
     for (const id of itemIds) {
       this.controller.items.delete(id);
     }
-    this.registeredItems.forEach(registered => {
-      registered.item.children.forEach(child => {
-        registered.item.children.delete(child.id);
-      });
-    });
     this.registeredItems.clear();
+    this.testItems.clear();
   }
 
   private async runTests(request: vscode.TestRunRequest): Promise<void> {
@@ -458,21 +484,45 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
     const include = request.include ?? [...this.controller.items].map(([, item]) => item);
     const includeIds = new Set(include.map(item => item.id));
     const excluded = new Set((request.exclude ?? []).map(item => item.id));
-    const groups = new Map<string, TestRunGroup>();
+    const collected = new Map<string, RegisteredTestItem>();
 
     for (const item of include) {
       if (excluded.has(item.id) || hasIncludedAncestor(item, includeIds)) {
         continue;
       }
-      const root = this.registeredItems.get(item.id);
-      if (!root) {
+      this.collectItemAndChildren(item, excluded, collected);
+    }
+
+    const groups = new Map<string, TestRunGroup>();
+    const executableItems = [...collected.values()];
+    const groupedIds = new Set<string>();
+    for (const registered of executableItems) {
+      if (registered.kind !== 'function') {
         continue;
       }
       const items = new Map<string, RegisteredTestItem>();
-      this.collectItemAndChildren(item, excluded, items);
-      groups.set(root.item.id, {
-        root,
+      this.collectItemAndChildren(registered.item, excluded, items);
+      for (const id of [...items.keys()]) {
+        if (!collected.has(id)) {
+          items.delete(id);
+        }
+      }
+      groups.set(registered.item.id, {
+        root: registered,
         items: [...items.values()]
+      });
+      for (const id of items.keys()) {
+        groupedIds.add(id);
+      }
+    }
+
+    for (const registered of executableItems) {
+      if (registered.kind !== 'case' || groupedIds.has(registered.item.id)) {
+        continue;
+      }
+      groups.set(registered.item.id, {
+        root: registered,
+        items: [registered]
       });
     }
 
@@ -510,6 +560,28 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
           ? `:${diagnostic.line + 1}:${(diagnostic.character ?? 0) + 1}`
           : '';
       this.output.appendLine(`Go Bench Testing API diagnostic ${file}${position} (${configKey}): ${diagnostic.message}`);
+    }
+  }
+
+  private deleteItemTree(item: vscode.TestItem): void {
+    item.children.forEach(child => {
+      this.deleteItemTree(child);
+    });
+    this.registeredItems.delete(item.id);
+    this.testItems.delete(item.id);
+  }
+
+  private pruneEmptyAncestors(item: vscode.TestItem | undefined): void {
+    let current = item;
+    while (current && current.children.size === 0 && !this.registeredItems.has(current.id)) {
+      const parent = current.parent;
+      this.deleteItemTree(current);
+      if (parent) {
+        parent.children.delete(current.id);
+      } else {
+        this.controller.items.delete(current.id);
+      }
+      current = parent;
     }
   }
 }

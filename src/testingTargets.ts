@@ -1,18 +1,18 @@
 /**
  * VSCode Testing API 原型使用的测试树模型。
  *
- * 该模块不依赖 VSCode API，只把 parser 的结果转换成稳定的树节点：测试函数是根节点，table case
- * 是子节点，节点携带可直接传给 runner 的 `GoTestRunTarget`。真实 Testing API 适配层只负责把这些
- * 纯数据映射成 `TestItem`，避免 UI 原型和识别逻辑耦合。
+ * 该模块不依赖 VSCode API，只把 parser 的结果转换成稳定的树节点：package/directory 是根层级，
+ * 文件节点下再挂测试函数和 table case。可执行节点携带可直接传给 runner 的 `GoTestRunTarget`。
+ * 真实 Testing API 适配层只负责把这些纯数据映射成 `TestItem`，避免 UI 原型和识别逻辑耦合。
  */
 
-import { dirname } from 'node:path';
+import { basename, dirname, isAbsolute, relative, sep } from 'node:path';
 import type { GoTestFileParseResult, SourceRange } from './parser';
 import type { GoTestRunTarget } from './runner';
 import type { TableTestConfig } from './tableTestConfig';
 
 /** Testing API 树节点类型。 */
-export type GoTestTreeNodeKind = 'function' | 'case';
+export type GoTestTreeNodeKind = 'package' | 'file' | 'function' | 'case';
 
 /** 可映射为 VSCode `TestItem` 的纯数据节点。 */
 export type GoTestTreeNode = {
@@ -20,14 +20,21 @@ export type GoTestTreeNode = {
   id: string;
   /** 展示给用户的节点名。 */
   label: string;
-  /** 节点类型，帮助适配层区分函数和 case。 */
+  /** 节点类型，帮助适配层区分结构节点和可运行节点。 */
   kind: GoTestTreeNodeKind;
-  /** 节点锚定源码范围。 */
-  range: SourceRange;
-  /** 点击测试树运行时复用的 runner 目标。 */
-  runTarget: GoTestRunTarget;
-  /** table case 子节点；case 节点当前没有子节点。 */
+  /** 节点关联文件；结构节点可以只提供目录 URI。 */
+  file?: string;
+  /** 节点锚定源码范围；package 和 file 结构节点不需要范围。 */
+  range?: SourceRange;
+  /** 点击测试树运行时复用的 runner 目标；只有 function 和 case 节点可运行。 */
+  runTarget?: GoTestRunTarget;
+  /** 子节点；case 节点当前没有子节点。 */
   children: GoTestTreeNode[];
+};
+
+export type GoTestTreeNodeOptions = {
+  /** workspace root 用于把 package/directory 标签显示成和官方 Go 插件接近的相对路径。 */
+  workspaceRoot?: string;
 };
 
 /**
@@ -38,13 +45,14 @@ export type GoTestTreeNode = {
  */
 export function createGoTestTreeNodes(
   parseResult: GoTestFileParseResult,
-  config: Pick<TableTestConfig, 'showFunctionRun' | 'showCaseRun'>
+  config: Pick<TableTestConfig, 'showFunctionRun' | 'showCaseRun'>,
+  options: GoTestTreeNodeOptions = {}
 ): GoTestTreeNode[] {
   if (!config.showFunctionRun) {
     return [];
   }
 
-  return parseResult.testFunctions.map(testFunction => {
+  const fileNodeChildren: GoTestTreeNode[] = parseResult.testFunctions.map(testFunction => {
     const functionTarget: GoTestRunTarget = {
       file: testFunction.file,
       packageDir: dirname(testFunction.file),
@@ -56,7 +64,8 @@ export function createGoTestTreeNodes(
     return {
       id: createGoTestTreeNodeId(testFunction.file, testFunction.name),
       label: testFunction.name,
-      kind: 'function',
+      kind: 'function' as const,
+      file: testFunction.file,
       range: testFunction.nameRange,
       runTarget: functionTarget,
       children: config.showCaseRun
@@ -64,6 +73,7 @@ export function createGoTestTreeNodes(
             id: createGoTestTreeNodeId(tableCase.file, tableCase.testName, tableCase.subtestPath),
             label: tableCase.subtestName,
             kind: 'case' as const,
+            file: tableCase.file,
             range: tableCase.range,
             runTarget: {
               file: tableCase.file,
@@ -77,9 +87,57 @@ export function createGoTestTreeNodes(
         : []
     };
   });
+
+  if (fileNodeChildren.length === 0) {
+    return [];
+  }
+
+  const packageDir = dirname(parseResult.file);
+  return [
+    {
+      id: createGoTestPackageNodeId(packageDir),
+      label: createPackageNodeLabel(packageDir, options.workspaceRoot),
+      kind: 'package',
+      file: packageDir,
+      children: [
+        {
+          id: createGoTestFileNodeId(parseResult.file),
+          label: basename(parseResult.file),
+          kind: 'file',
+          file: parseResult.file,
+          children: fileNodeChildren
+        }
+      ]
+    }
+  ];
 }
 
 /** 构造 Testing API 节点稳定 ID。 */
 export function createGoTestTreeNodeId(file: string, testName: string, subtestPath: readonly string[] = []): string {
-  return ['go-bench', file, testName, ...subtestPath].map(encodeURIComponent).join('/');
+  return ['go-bench', 'test', file, testName, ...subtestPath].map(encodeURIComponent).join('/');
+}
+
+/** 构造 package/directory 结构节点稳定 ID。 */
+export function createGoTestPackageNodeId(packageDir: string): string {
+  return ['go-bench', 'package', packageDir].map(encodeURIComponent).join('/');
+}
+
+/** 构造 `_test.go` 文件结构节点稳定 ID。 */
+export function createGoTestFileNodeId(file: string): string {
+  return ['go-bench', 'file', file].map(encodeURIComponent).join('/');
+}
+
+function createPackageNodeLabel(packageDir: string, workspaceRoot: string | undefined): string {
+  if (!workspaceRoot) {
+    return packageDir;
+  }
+
+  const relativeDir = relative(workspaceRoot, packageDir);
+  if (relativeDir === '') {
+    return '.';
+  }
+  if (relativeDir.startsWith('..') || isAbsolute(relativeDir)) {
+    return packageDir;
+  }
+  return `./${relativeDir.split(sep).join('/')}`;
 }
