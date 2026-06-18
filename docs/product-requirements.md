@@ -215,6 +215,26 @@ go test ./path/to/package -run '^TestName$/^case name$'
 }
 ```
 
+### 9.4 Test Explorer 运行结果展示
+
+当插件接入 VSCode Testing API 后，Test Explorer 中的测试集合节点必须表现为真实的测试树入口，而不是只代表一个单独的聚合测试状态。
+
+集合节点运行行为：
+
+- 用户在 Test Explorer 中点击测试集合节点运行时，插件必须运行该集合下所有可执行子测试。
+- 集合节点运行期间，必须为所有被运行的子测试创建对应的 Testing API 运行状态。
+- 子测试开始、通过、失败、跳过或出错时，必须同步更新该子测试在 Test Explorer 树中的状态图标。
+- 集合节点的最终状态应由子测试结果汇总得出；任一子测试失败时，集合节点应显示失败状态，全部通过时才显示通过状态。
+- 不允许只更新集合节点状态而遗漏子测试状态。
+
+测试结果输出行为：
+
+- 使用 Testing API 运行测试时，`go test` 的 stdout、stderr 和失败详情必须写入 VSCode Test Results 视图关联的 test run。
+- Test Results 视图中应能看到本次运行的完整输出，并能定位到对应失败子测试。
+- Output Channel 可以作为诊断补充保留，但不能作为 Testing API 运行后的唯一结果输出位置。
+- 失败子测试应尽可能生成与子测试节点关联的失败 message，方便用户从 Test Results 直接跳转或查看上下文。
+- 如果 `go test` 输出无法精确映射到某个子测试，至少必须写入当前 test run 的全局输出，避免用户只能到普通 output view 中查找结果。
+
 ## 10. 技术要求
 
 ### 10.1 架构建议
@@ -570,6 +590,27 @@ runner 必须生成兼容 Go subtest 选择规则的正则路径：
 - 当前文件不是 `_test.go` 或 Testing API 未启用时，用户看到清晰提示。
 - 完整测试套件通过，并在工作文档中记录结果。
 - 里程碑文档更新当前可进行操作，例如如何点击顶部 CodeLens 刷新当前文件测试树。
+
+### 里程碑 8：Test Explorer 集合运行结果展示
+
+- 修复 Test Explorer 中点击集合节点运行时只显示集合节点状态的问题。
+- 集合节点运行时，必须运行该集合下所有可执行子测试，并为每个子测试更新 Testing API 状态。
+- 将 `go test` 输出接入 Testing API `TestRun`，让输出显示在 VSCode Test Results 视图中。
+- 保留 Output Channel 作为辅助诊断入口，但 Testing API 运行结果不得只输出到普通 output view。
+- 解析 `go test -json` 或等价结构化输出，将子测试的 pass、fail、skip、error 状态映射回对应 Test Explorer 节点。
+- 为集合节点状态实现汇总逻辑，确保集合节点状态与子测试结果一致。
+- 为集合运行、子测试状态更新、Test Results 输出和失败 message 关联补充自动化测试与工作文档。
+
+退出标准：
+
+- 用户在 Test Explorer 中点击合集测试节点后，可以看到所有被运行子测试的状态图标逐一更新。
+- 子测试失败时，失败状态显示在对应子测试节点上，而不是只显示在合集节点上。
+- Test Results 视图中可以看到本次 `go test` 的 stdout、stderr 和失败详情。
+- 普通 Output Channel 不再是 Testing API 运行结果的唯一输出位置。
+- 集合节点状态由子测试结果汇总得出，全部子测试通过才显示通过，任一子测试失败则显示失败。
+- 自动化测试覆盖集合节点运行、子测试状态映射、Test Results 输出写入和失败结果关联。
+- 完整测试套件通过，并在工作文档中记录结果。
+- 里程碑文档更新当前可进行操作，例如如何在 Test Explorer 中运行集合节点、如何查看 Test Results 输出、如何验证子测试状态图标。
 
 ## 15. 测试 fixture 计划
 
