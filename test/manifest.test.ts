@@ -27,15 +27,8 @@ describe('VSCode extension manifest', () => {
     assert.equal(manifest.main, './out/src/extension.js');
   });
 
-  it('activates for Go files, Go test workspaces, and the no-op command', () => {
-    assert.deepEqual(manifest.activationEvents, [
-      'onLanguage:go',
-      'workspaceContains:**/*_test.go',
-      'onCommand:goBench.noop',
-      'onCommand:goBench.runTest',
-      'onCommand:goBench.refreshTestTree',
-      'onCommand:goBench.refreshCurrentFileTestTree'
-    ]);
+  it('activates for Go files and Go test workspaces', () => {
+    assert.deepEqual(manifest.activationEvents, ['onLanguage:go', 'workspaceContains:**/*_test.go']);
   });
 
   it('contributes extension commands used by startup and CodeLens execution', () => {

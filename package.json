@@ -1,7 +1,7 @@
 {
   "name": "go-bench",
   "displayName": "Go Bench",
-  "description": "VSCode extension skeleton for table-driven Go test run entries.",
+  "description": "Run Go table-driven test cases from CodeLens and the VS Code Test Explorer.",
   "version": "0.0.1",
   "publisher": "vuuvv",
   "license": "MIT",
