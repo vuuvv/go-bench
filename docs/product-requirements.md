@@ -173,7 +173,8 @@ go test ./path/to/package -run '^TestName$/^case name$'
 
 - 函数级入口：`Run Test`
 - case 级入口：`Run Case`
-- 后续可选调试入口：`Debug Case`
+- 函数级调试入口：`Debug Test`
+- case 级调试入口：`Debug Case`
 
 展示名示例：
 
@@ -235,6 +236,31 @@ go test ./path/to/package -run '^TestName$/^case name$'
 - 失败子测试应尽可能生成与子测试节点关联的失败 message，方便用户从 Test Results 直接跳转或查看上下文。
 - 如果 `go test` 输出无法精确映射到某个子测试，至少必须写入当前 test run 的全局输出，避免用户只能到普通 output view 中查找结果。
 
+### 9.5 调试入口
+
+插件必须在已有运行入口旁边提供对等的调试入口，允许用户直接调试整个测试函数或单个 table case。
+
+编辑器入口：
+
+- 当显示 `Run Test` 时，同一测试函数位置也应显示 `Debug Test`。
+- 当显示 `Run Case` 时，同一 table case 位置也应显示 `Debug Case`。
+- Debug 入口必须复用 Run 入口的目标解析结果，避免调试和运行选中不同测试。
+- 如果某个 case 因动态名称或不支持模式没有显示 `Run Case`，也不应显示误导性的 `Debug Case`。
+
+调试行为：
+
+- Debug 入口应通过 VSCode 调试 API 启动官方 Go 调试适配器。
+- Go 调试配置应使用 `type: "go"`、`request: "launch"`、`mode: "test"`。
+- 调试整个测试函数时，应只调试目标 `TestXxx`。
+- 调试单个 table case 时，应传入与 Run Case 等价的 `-test.run` pattern。
+- 调试启动失败、无法确定 workspace folder 或缺少 Go 调试环境时，应给出清晰错误提示，并在 `Go Bench` output channel 保留诊断信息。
+
+Test Explorer 入口：
+
+- 启用 Testing API 时，Test Explorer 应提供 Debug profile。
+- 用户从 Test Explorer 调试函数节点或 case 节点时，应启动与该节点匹配的 Go test debug session。
+- 调试集合节点时，应以集合节点对应的测试函数为调试目标，不应为每个子 case 重复启动多个调试会话。
+
 ## 10. 技术要求
 
 ### 10.1 架构建议
@@ -247,6 +273,7 @@ go test ./path/to/package -run '^TestName$/^case name$'
 - `locator`：源码 range 映射。
 - `runner`：`go test` 命令构造与执行。
 - `codelens`：编辑器运行入口提供者。
+- `debugger`：Go test debug 配置构造和 VSCode 调试启动入口。
 - `testing`：可选的 VSCode Testing API 集成。
 
 ### 10.2 解析策略
@@ -612,6 +639,28 @@ runner 必须生成兼容 Go subtest 选择规则的正则路径：
 - 完整测试套件通过，并在工作文档中记录结果。
 - 里程碑文档更新当前可进行操作，例如如何在 Test Explorer 中运行集合节点、如何查看 Test Results 输出、如何验证子测试状态图标。
 
+### 里程碑 9：Go 测试调试入口
+
+- 在编辑器 CodeLens 中为函数级入口新增 `Debug Test`。
+- 在编辑器 CodeLens 中为已识别 table case 新增 `Debug Case`。
+- 添加命令 `goBench.debugTest`，通过 VSCode debug API 启动 Go test debug session。
+- 构造 Go debug 配置：`type: "go"`、`request: "launch"`、`mode: "test"`、`program` 指向 package 目录，并传入 `-test.run` pattern。
+- Debug 入口必须复用 Run 入口的 `GoTestRunTarget` 和 run pattern 构造逻辑。
+- 为 Test Explorer 添加 Debug profile，使函数节点和 case 节点也可以从测试树中调试。
+- 为 debug 命令 ID、manifest 贡献、CodeLens 目标生成、debug 配置构造和工作文档补充测试与说明。
+
+退出标准：
+
+- 打开 Go `_test.go` 文件后，函数级 CodeLens 同时显示 `Run Test` 和 `Debug Test`。
+- 可解析 table case 的源码位置同时显示 `Run Case` 和 `Debug Case`。
+- 点击 `Debug Test` 会启动目标测试函数的 Go test debug session。
+- 点击 `Debug Case` 会启动目标 table case 的 Go test debug session，并使用与 `Run Case` 等价的 `-test.run` pattern。
+- 启用 Testing API 后，Test Explorer 中存在 Debug profile，可以从函数节点或 case 节点启动调试。
+- 无法确定 workspace folder 或调试启动失败时，用户看到清晰错误提示，`Go Bench` output channel 保留诊断信息。
+- 自动化测试覆盖 debug 配置构造、CodeLens debug target、命令常量和 manifest 贡献。
+- 完整测试套件通过，并在工作文档中记录结果。
+- 里程碑文档更新当前可进行操作，例如如何点击 Debug CodeLens、如何从 Test Explorer 启动 Debug、如何检查 `-test.run` pattern。
+
 ## 15. 测试 fixture 计划
 
 必备 fixtures：
@@ -655,7 +704,6 @@ runner 必须生成兼容 Go subtest 选择规则的正则路径：
 - 第一阶段是否依赖官方 Go 插件已安装，还是完全独立运行？
 - 测试执行应该使用 VSCode terminal、output channel，还是两者都支持？
 - 当 table entry 和 `t.Run` 位置都可用时，case 运行入口应该显示在哪一个位置，还是两处都显示？
-- 第一阶段是否包含 debug action，还是留到 v0.2？
 - 对于 `probable` 级别的 case，是否允许通过 experimental 设置显示？
 
 ## 18. v0.1 建议定义

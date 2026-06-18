@@ -10,6 +10,7 @@ import { dirname } from 'node:path';
 import * as vscode from 'vscode';
 import { commands, configurationKeys, outputChannelName } from './constants';
 import { GoTestCodeLensProvider } from './codelens';
+import { buildGoTestDebugConfiguration } from './debugger';
 import { isGoTestFile } from './parser';
 import { runGoTestTarget, type GoTestRunTarget } from './runner';
 import { GoBenchTestingApiPrototypeManager } from './testing';
@@ -53,6 +54,34 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     } catch (error) {
       outputChannel.appendLine(`Go Bench run failed: ${String(error)}`);
+      void vscode.window.showErrorMessage(`Go Bench: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
+
+  const debugTestCommand = vscode.commands.registerCommand(commands.debugTest, async (target: unknown) => {
+    outputChannel.show(true);
+
+    try {
+      const normalizedTarget = normalizeRunTarget(target);
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(normalizedTarget.file));
+      if (!workspaceFolder) {
+        void vscode.window.showErrorMessage('Go Bench: cannot determine workspace folder for this Go test file.');
+        return;
+      }
+
+      const configuration = buildGoTestDebugConfiguration(normalizedTarget, {
+        workspaceRoot: workspaceFolder.uri.fsPath
+      });
+      outputChannel.appendLine('');
+      outputChannel.appendLine(`Debugging ${normalizedTarget.label}`);
+      outputChannel.appendLine(`Go Bench debug configuration: ${JSON.stringify(configuration)}`);
+
+      const started = await vscode.debug.startDebugging(workspaceFolder, configuration);
+      if (!started) {
+        void vscode.window.showErrorMessage('Go Bench: failed to start Go test debugging.');
+      }
+    } catch (error) {
+      outputChannel.appendLine(`Go Bench debug failed: ${String(error)}`);
       void vscode.window.showErrorMessage(`Go Bench: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
@@ -128,6 +157,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     noopCommand,
     runTestCommand,
+    debugTestCommand,
     refreshTestTreeCommand,
     refreshCurrentFileTestTreeCommand,
     goTestCodeLensProvider,

@@ -15,6 +15,7 @@ import {
   type GoTestJsonEvent,
   type GoTestJsonStreamRecord
 } from './goTestJson';
+import { buildGoTestDebugConfiguration } from './debugger';
 import { GoHelperParser, isGoTestFile } from './parser';
 import type { GoTestFileParseResult, GoTestParser, SourceRange } from './parser';
 import { runGoTestTarget, type GoTestRunTarget } from './runner';
@@ -121,6 +122,11 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
     this.disposables.push(
       this.controller.createRunProfile('Run', vscode.TestRunProfileKind.Run, request => {
         void this.runTests(request);
+      })
+    );
+    this.disposables.push(
+      this.controller.createRunProfile('Debug', vscode.TestRunProfileKind.Debug, request => {
+        void this.debugTests(request);
       })
     );
   }
@@ -281,6 +287,29 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
     }
 
     run.end();
+  }
+
+  private async debugTests(request: vscode.TestRunRequest): Promise<void> {
+    const groups = this.collectRequestedRunGroups(request);
+
+    for (const group of groups) {
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(group.root.target.file));
+      if (!workspaceFolder) {
+        void vscode.window.showErrorMessage('Go Bench: cannot determine workspace folder for this Go test file.');
+        continue;
+      }
+
+      const configuration = buildGoTestDebugConfiguration(group.root.target, {
+        workspaceRoot: workspaceFolder.uri.fsPath
+      });
+      this.output.appendLine('');
+      this.output.appendLine(`Go Bench Testing API debug: ${group.root.target.label}`);
+      this.output.appendLine(`Go Bench debug configuration: ${JSON.stringify(configuration)}`);
+      const started = await vscode.debug.startDebugging(workspaceFolder, configuration);
+      if (!started) {
+        void vscode.window.showErrorMessage(`Go Bench: failed to start debugging ${group.root.target.label}.`);
+      }
+    }
   }
 
   private async runGroupWithJsonEvents(

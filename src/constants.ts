@@ -9,6 +9,8 @@ export const commands = {
   noop: 'goBench.noop',
   /** 从 CodeLens 触发 `go test -run` 的命令入口。 */
   runTest: 'goBench.runTest',
+  /** 从 CodeLens 或 Test Explorer 触发 Go test debug 的命令入口。 */
+  debugTest: 'goBench.debugTest',
   /** 重新扫描 workspace 并刷新实验 Testing API 测试树。 */
   refreshTestTree: 'goBench.refreshTestTree',
   /** 只刷新当前 Go 测试文件在实验 Testing API 测试树中的节点。 */

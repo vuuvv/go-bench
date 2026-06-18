@@ -31,6 +31,10 @@
         "title": "Go Bench: Run Test"
       },
       {
+        "command": "goBench.debugTest",
+        "title": "Go Bench: Debug Test"
+      },
+      {
         "command": "goBench.refreshTestTree",
         "title": "Go Bench: Refresh Test Tree"
       },

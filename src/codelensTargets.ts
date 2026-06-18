@@ -2,7 +2,7 @@
  * CodeLens 目标生成的纯函数层。
  *
  * 该模块不依赖 VSCode API，方便在 Node 单元测试中验证 CodeLens provider 的核心行为：哪些入口会显示、
- * 锚定到哪个 range、命令参数是否能被 runner 使用。真正的 provider 只把这些描述转换成
+ * 锚定到哪个 range、命令参数是否能被 runner/debugger 使用。真正的 provider 只把这些描述转换成
  * `vscode.CodeLens` 实例。
  */
 
@@ -11,8 +11,8 @@ import type { GoTestFileParseResult, SourceRange } from './parser';
 import type { GoTestRunTarget } from './runner';
 import type { TableTestConfig } from './tableTestConfig';
 
-/** 可转换为 VSCode CodeLens 的运行入口描述。 */
-export type GoTestCodeLensTarget = GoTestRunCodeLensTarget | GoTestRefreshCodeLensTarget;
+/** 可转换为 VSCode CodeLens 的入口描述。 */
+export type GoTestCodeLensTarget = GoTestRunCodeLensTarget | GoTestDebugCodeLensTarget | GoTestRefreshCodeLensTarget;
 
 /** 可转换为 VSCode CodeLens 的测试运行入口描述。 */
 export type GoTestRunCodeLensTarget = {
@@ -23,6 +23,18 @@ export type GoTestRunCodeLensTarget = {
   /** CodeLens 类型，provider 据此选择命令 ID。 */
   kind: 'run';
   /** 点击 CodeLens 后传给 runner 的目标参数。 */
+  runTarget: GoTestRunTarget;
+};
+
+/** 可转换为 VSCode CodeLens 的测试调试入口描述。 */
+export type GoTestDebugCodeLensTarget = {
+  /** CodeLens 展示标题，例如 `Debug Test` 或 `Debug Case`。 */
+  title: 'Debug Test' | 'Debug Case';
+  /** CodeLens 锚定范围。 */
+  range: SourceRange;
+  /** CodeLens 类型，provider 据此选择调试命令 ID。 */
+  kind: 'debug';
+  /** 点击 CodeLens 后传给 debugger 的目标参数。 */
   runTarget: GoTestRunTarget;
 };
 
@@ -60,33 +72,47 @@ export function createGoTestCodeLensTargets(
 
   for (const testFunction of parseResult.testFunctions) {
     if (config.showFunctionRun) {
+      const runTarget: GoTestRunTarget = {
+        file: testFunction.file,
+        packageDir: dirname(testFunction.file),
+        testName: testFunction.name,
+        subtestPath: [],
+        label: testFunction.name
+      };
       targets.push({
         title: 'Run Test',
         range: testFunction.nameRange,
         kind: 'run',
-        runTarget: {
-          file: testFunction.file,
-          packageDir: dirname(testFunction.file),
-          testName: testFunction.name,
-          subtestPath: [],
-          label: testFunction.name
-        }
+        runTarget
+      });
+      targets.push({
+        title: 'Debug Test',
+        range: testFunction.nameRange,
+        kind: 'debug',
+        runTarget
       });
     }
 
     if (config.showCaseRun) {
       for (const tableCase of testFunction.tableCases) {
+        const runTarget: GoTestRunTarget = {
+          file: tableCase.file,
+          packageDir: dirname(tableCase.file),
+          testName: tableCase.testName,
+          subtestPath: tableCase.subtestPath,
+          label: tableCase.label
+        };
         targets.push({
           title: 'Run Case',
           range: tableCase.range,
           kind: 'run',
-          runTarget: {
-            file: tableCase.file,
-            packageDir: dirname(tableCase.file),
-            testName: tableCase.testName,
-            subtestPath: tableCase.subtestPath,
-            label: tableCase.label
-          }
+          runTarget
+        });
+        targets.push({
+          title: 'Debug Case',
+          range: tableCase.range,
+          kind: 'debug',
+          runTarget
         });
       }
     }

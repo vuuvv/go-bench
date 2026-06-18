@@ -58,7 +58,7 @@ describe('CodeLens target generation', () => {
 
     assert.deepEqual(
       targets.map(target => target.title),
-      ['Refresh Test Tree', 'Run Test', 'Run Case']
+      ['Refresh Test Tree', 'Run Test', 'Debug Test', 'Run Case', 'Debug Case']
     );
     assert.deepEqual(targets[0], {
       title: 'Refresh Test Tree',
@@ -77,9 +77,20 @@ describe('CodeLens target generation', () => {
       subtestPath: [],
       label: 'TestNormalize'
     });
-    assert.equal(targets[2]?.kind, 'run');
-    assert.deepEqual(targets[2]?.kind === 'run' ? targets[2].runTarget.subtestPath : undefined, ['empty input']);
-    assert.deepEqual(targets[2]?.range, range);
+    assert.equal(targets[2]?.kind, 'debug');
+    assert.deepEqual(targets[2]?.kind === 'debug' ? targets[2].runTarget : undefined, {
+      file,
+      packageDir: join('/', 'workspace', 'repo', 'pkg'),
+      testName: 'TestNormalize',
+      subtestPath: [],
+      label: 'TestNormalize'
+    });
+    assert.equal(targets[3]?.kind, 'run');
+    assert.deepEqual(targets[3]?.kind === 'run' ? targets[3].runTarget.subtestPath : undefined, ['empty input']);
+    assert.deepEqual(targets[3]?.range, range);
+    assert.equal(targets[4]?.kind, 'debug');
+    assert.deepEqual(targets[4]?.kind === 'debug' ? targets[4].runTarget.subtestPath : undefined, ['empty input']);
+    assert.deepEqual(targets[4]?.range, range);
   });
 
   it('honors function and case CodeLens visibility settings', () => {
@@ -87,13 +98,13 @@ describe('CodeLens target generation', () => {
       createGoTestCodeLensTargets(parseResult(), { showFunctionRun: false, showCaseRun: true }).map(
         target => target.title
       ),
-      ['Refresh Test Tree', 'Run Case']
+      ['Refresh Test Tree', 'Run Case', 'Debug Case']
     );
     assert.deepEqual(
       createGoTestCodeLensTargets(parseResult(), { showFunctionRun: true, showCaseRun: false }).map(
         target => target.title
       ),
-      ['Refresh Test Tree', 'Run Test']
+      ['Refresh Test Tree', 'Run Test', 'Debug Test']
     );
   });
 });

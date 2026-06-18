@@ -9,7 +9,7 @@
 - 使用 `vscode.tests.createTestController` 创建 `Go Bench Table Tests` 测试控制器。
 - 将 parser 输出的 `TestXxx` 函数映射为测试树根节点。
 - 将可静态解析的 table case 映射为函数节点下的子节点。
-- 复用现有 `GoTestRunTarget` 和 `runGoTestTarget`，运行行为与 CodeLens 保持一致。
+- 复用现有 `GoTestRunTarget`，运行和调试行为与 CodeLens 保持一致。
 - 支持文档编辑、保存和配置变化后的测试树刷新。
 - 使用 `goBench.tableTests.testingApi.enabled` 控制开关，默认关闭。
 - 使用 `Go Bench: Refresh Test Tree` 命令或 Test Explorer refresh 按钮重新扫描整个 workspace。
@@ -22,7 +22,7 @@
 | 单 case 可见性 | case 所在源码附近直接显示 | 需要打开测试树层级 |
 | 与官方 Go 插件重叠 | 较低，主要补 table case 入口 | 较高，可能与官方测试树重复 |
 | 运行结果呈现 | `Go Bench` output channel | Test Explorer 状态 + Test Results 输出，Output Channel 作为补充诊断 |
-| 当前实现成熟度 | 已作为主路径验证 | 原型可用，已支持合集子状态映射，缺少 Extension Host e2e |
+| 当前实现成熟度 | 已作为主路径验证 | 原型可用，已支持合集子状态映射和 Debug profile，缺少 Extension Host e2e |
 | v0.1 风险 | 低 | 中等，需继续验证共存和刷新成本 |
 
 ## 设计取舍
@@ -32,7 +32,7 @@
 - `src/testing.ts` 只做 VSCode 适配：创建 controller、刷新文档节点、处理 Test Explorer 运行请求。
 - 测试树运行复用 runner 的命令构造和执行能力；Testing API 路径额外启用 `go test -json`，用于把结果映射回子测试节点。
 - 运行父节点时只执行一次父函数目标，同时展开已注册子 case 的 Testing API 状态，避免重复运行同一个测试函数和 case。
-- 当前不实现 debug profile、coverage profile 和 nested subtest path 展示，防止原型范围膨胀。
+- 当前实现 run/debug profile；coverage profile 和 nested subtest path 展示仍暂不纳入，防止原型范围膨胀。
 
 ## 已验证内容
 
@@ -42,6 +42,7 @@
   - `showFunctionRun`、`showCaseRun` 显示开关。
   - `go test -json` event 解析、chunk 边界和 Go test name 映射。
   - runner `-json` 命令构造。
+  - Go test debug configuration 构造。
 - `npm run lint` 覆盖新增 TypeScript 代码风格。
 - `npm run compile` 由 `npm test` 触发，验证 `vscode.TestController`、`TestRunProfile`、`TestRunRequest` 等 API 类型可编译。
 

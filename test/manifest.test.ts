@@ -42,6 +42,10 @@ describe('VSCode extension manifest', () => {
         title: 'Go Bench: Run Test'
       },
       {
+        command: commands.debugTest,
+        title: 'Go Bench: Debug Test'
+      },
+      {
         command: commands.refreshTestTree,
         title: 'Go Bench: Refresh Test Tree'
       },

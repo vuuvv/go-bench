@@ -1,7 +1,7 @@
 /**
  * Go table-driven test CodeLens provider。
  *
- * provider 负责把 parser 的结构化结果转换成 VSCode 编辑器里的运行入口：函数级入口锚定函数名，
+ * provider 负责把 parser 的结构化结果转换成 VSCode 编辑器里的运行和调试入口：函数级入口锚定函数名，
  * case 级入口锚定 table entry。解析失败或用户正在输入不完整代码时只记录到 output channel，
  * 不在编辑器里制造噪声，符合产品对未完成编辑状态的容错要求。
  */
@@ -28,7 +28,7 @@ export type GoTestCodeLensProviderOptions = {
   cache?: CodeLensParseCache<GoTestFileParseResult>;
 };
 
-/** 为 Go `_test.go` 文件提供 `Run Test` 和 `Run Case` CodeLens。 */
+/** 为 Go `_test.go` 文件提供 run/debug CodeLens。 */
 export class GoTestCodeLensProvider implements vscode.CodeLensProvider, vscode.Disposable {
   private readonly parser: GoTestParser;
   private readonly getConfig: () => TableTestConfig;
@@ -87,18 +87,7 @@ export class GoTestCodeLensProvider implements vscode.CodeLensProvider, vscode.D
         return [];
       }
       return createGoTestCodeLensTargets(result, config).map(target => {
-        const command =
-          target.kind === 'run'
-            ? {
-                title: target.title,
-                command: commands.runTest,
-                arguments: [target.runTarget]
-              }
-            : {
-                title: target.title,
-                command: commands.refreshCurrentFileTestTree,
-                arguments: [target.file]
-              };
+        const command = toCommand(target);
         return new vscode.CodeLens(toVsCodeRange(target.range), {
           ...command
         });
@@ -148,6 +137,30 @@ export class GoTestCodeLensProvider implements vscode.CodeLensProvider, vscode.D
       this.output?.appendLine(`Go Bench parser diagnostic ${file}${position}: ${diagnostic.message}`);
     }
   }
+}
+
+function toCommand(target: ReturnType<typeof createGoTestCodeLensTargets>[number]): vscode.Command {
+  if (target.kind === 'run') {
+    return {
+      title: target.title,
+      command: commands.runTest,
+      arguments: [target.runTarget]
+    };
+  }
+
+  if (target.kind === 'debug') {
+    return {
+      title: target.title,
+      command: commands.debugTest,
+      arguments: [target.runTarget]
+    };
+  }
+
+  return {
+    title: target.title,
+    command: commands.refreshCurrentFileTestTree,
+    arguments: [target.file]
+  };
 }
 
 /** 从 VSCode 配置读取并归一化 table-driven test 选项。 */
