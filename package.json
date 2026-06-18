@@ -2,7 +2,7 @@
   "name": "go-bench",
   "displayName": "Go Bench",
   "description": "Run Go table-driven test cases from CodeLens and the VS Code Test Explorer.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "vuuvv",
   "license": "MIT",
   "repository": {
