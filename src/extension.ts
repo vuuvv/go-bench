@@ -125,6 +125,26 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   );
 
+  const toggleTestTreeModeCommand = vscode.commands.registerCommand(commands.toggleTestTreeMode, async () => {
+    const currentMode = readTestingApiTreeModeFromWorkspace();
+    const nextMode = currentMode === 'goBench' ? 'standardGo' : 'goBench';
+    await vscode.workspace.getConfiguration().update(configurationKeys.testingApiTreeMode, nextMode, vscode.ConfigurationTarget.Workspace);
+    outputChannel.appendLine(`Go Bench Testing API tree mode: ${nextMode}.`);
+
+    if (readTestingApiEnabledFromWorkspace()) {
+      testingApiPrototype.setEnabled(true);
+      const refreshed = await testingApiPrototype.refreshWorkspace();
+      void vscode.window.showInformationMessage(
+        `Go Bench: switched Test Explorer to ${formatTestingApiTreeMode(nextMode)} and refreshed ${refreshed} Go test file(s).`
+      );
+      return;
+    }
+
+    void vscode.window.showInformationMessage(
+      `Go Bench: switched Test Explorer to ${formatTestingApiTreeMode(nextMode)}. Enable goBench.tableTests.testingApi.enabled to show it.`
+    );
+  });
+
   const codeLensRegistration = vscode.languages.registerCodeLensProvider(
     { language: 'go', scheme: 'file', pattern: '**/*_test.go' },
     goTestCodeLensProvider
@@ -155,6 +175,7 @@ export function activate(context: vscode.ExtensionContext): void {
     codeLensTestResults,
     refreshTestTreeCommand,
     refreshCurrentFileTestTreeCommand,
+    toggleTestTreeModeCommand,
     goTestCodeLensProvider,
     testingApiPrototype,
     codeLensRegistration,
@@ -211,6 +232,18 @@ function readTestingApiEnabledFromWorkspace(): boolean {
   return normalizeTableTestConfig({
     testingApiEnabled: configuration.get(configurationKeys.testingApiEnabled)
   }).testingApiEnabled;
+}
+
+/** 从 VSCode 配置读取 Testing API 树模式。 */
+function readTestingApiTreeModeFromWorkspace(): 'goBench' | 'standardGo' {
+  const configuration = vscode.workspace.getConfiguration();
+  return normalizeTableTestConfig({
+    testingApiTreeMode: configuration.get(configurationKeys.testingApiTreeMode)
+  }).testingApiTreeMode;
+}
+
+function formatTestingApiTreeMode(mode: 'goBench' | 'standardGo'): string {
+  return mode === 'goBench' ? 'Go Bench tree' : 'standard Go tree';
 }
 
 /**

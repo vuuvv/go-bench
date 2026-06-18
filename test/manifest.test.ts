@@ -14,8 +14,11 @@ type ExtensionManifest = {
   activationEvents: string[];
   contributes: {
     commands: Array<{ command: string; title: string }>;
+    menus?: {
+      'view/title'?: Array<{ command: string; when?: string; group?: string }>;
+    };
     configuration: {
-      properties: Record<string, { default: unknown }>;
+      properties: Record<string, { default: unknown; enum?: unknown[] }>;
     };
   };
 };
@@ -52,6 +55,20 @@ describe('VSCode extension manifest', () => {
       {
         command: commands.refreshCurrentFileTestTree,
         title: 'Go Bench: Refresh Current File Test Tree'
+      },
+      {
+        command: commands.toggleTestTreeMode,
+        title: 'Go Bench: Toggle Test Tree Mode'
+      }
+    ]);
+  });
+
+  it('contributes a Testing view title command for switching tree modes', () => {
+    assert.deepEqual(manifest.contributes.menus?.['view/title'], [
+      {
+        command: commands.toggleTestTreeMode,
+        when: 'view == workbench.view.testing',
+        group: 'navigation'
       }
     ]);
   });
@@ -64,5 +81,7 @@ describe('VSCode extension manifest', () => {
     assert.equal(properties[configurationKeys.showFunctionRun].default, defaultTableTestConfig.showFunctionRun);
     assert.equal(properties[configurationKeys.showCaseRun].default, defaultTableTestConfig.showCaseRun);
     assert.equal(properties[configurationKeys.testingApiEnabled].default, defaultTableTestConfig.testingApiEnabled);
+    assert.equal(properties[configurationKeys.testingApiTreeMode].default, defaultTableTestConfig.testingApiTreeMode);
+    assert.deepEqual(properties[configurationKeys.testingApiTreeMode].enum, ['goBench', 'standardGo']);
   });
 });

@@ -12,6 +12,7 @@ import type { GoTestFileParseResult, SourceRange } from '../src/parser';
 import {
   createGoTestFileNodeId,
   createGoTestPackageNodeId,
+  createGoTestWorkspaceNodeId,
   createGoTestTreeNodeId,
   createGoTestTreeNodes
 } from '../src/testingTargets';
@@ -56,15 +57,22 @@ function parseResult(): GoTestFileParseResult {
 
 describe('Testing API target tree generation', () => {
   it('creates package and file roots before function and table case targets', () => {
-    const [packageNode] = createGoTestTreeNodes(
+    const [workspaceNode] = createGoTestTreeNodes(
       parseResult(),
       {
         showFunctionRun: true,
-        showCaseRun: true
+        showCaseRun: true,
+        testingApiTreeMode: 'goBench'
       },
-      { workspaceRoot: join('/', 'workspace', 'repo') }
+      { workspaceRoot: join('/', 'workspace', 'repo'), workspaceName: 'repo' }
     );
 
+    assert.equal(workspaceNode?.id, createGoTestWorkspaceNodeId(join('/', 'workspace', 'repo')));
+    assert.equal(workspaceNode?.label, 'repo');
+    assert.equal(workspaceNode?.kind, 'workspace');
+    assert.equal(workspaceNode?.runTarget, undefined);
+
+    const [packageNode] = workspaceNode?.children ?? [];
     assert.equal(packageNode?.id, createGoTestPackageNodeId(join('/', 'workspace', 'repo', 'pkg')));
     assert.equal(packageNode?.label, './pkg');
     assert.equal(packageNode?.kind, 'package');
@@ -96,14 +104,37 @@ describe('Testing API target tree generation', () => {
   });
 
   it('honors Testing API prototype visibility switches', () => {
-    assert.deepEqual(createGoTestTreeNodes(parseResult(), { showFunctionRun: false, showCaseRun: true }), []);
+    assert.deepEqual(
+      createGoTestTreeNodes(parseResult(), {
+        showFunctionRun: false,
+        showCaseRun: true,
+        testingApiTreeMode: 'goBench'
+      }),
+      []
+    );
 
     const [root] = createGoTestTreeNodes(parseResult(), {
       showFunctionRun: true,
-      showCaseRun: false
+      showCaseRun: false,
+      testingApiTreeMode: 'goBench'
     });
-    const [fileNode] = root?.children ?? [];
+    const [packageNode] = root?.children ?? [];
+    const [fileNode] = packageNode?.children ?? [];
     const [testFunction] = fileNode?.children ?? [];
+    assert.deepEqual(testFunction?.children, []);
+  });
+
+  it('uses standard Go tree mode to hide Go Bench table cases', () => {
+    const [root] = createGoTestTreeNodes(parseResult(), {
+      showFunctionRun: true,
+      showCaseRun: true,
+      testingApiTreeMode: 'standardGo'
+    });
+
+    const [packageNode] = root?.children ?? [];
+    const [fileNode] = packageNode?.children ?? [];
+    const [testFunction] = fileNode?.children ?? [];
+    assert.equal(testFunction?.kind, 'function');
     assert.deepEqual(testFunction?.children, []);
   });
 });

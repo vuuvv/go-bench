@@ -14,7 +14,9 @@ export const commands = {
   /** 重新扫描 workspace 并刷新实验 Testing API 测试树。 */
   refreshTestTree: 'goBench.refreshTestTree',
   /** 只刷新当前 Go 测试文件在实验 Testing API 测试树中的节点。 */
-  refreshCurrentFileTestTree: 'goBench.refreshCurrentFileTestTree'
+  refreshCurrentFileTestTree: 'goBench.refreshCurrentFileTestTree',
+  /** 在 Go Bench table case 树和标准 Go 函数级测试树之间切换。 */
+  toggleTestTreeMode: 'goBench.toggleTestTreeMode'
 } as const;
 
 /** VSCode output channel 名称，后续 runner 会复用同一个频道展示 `go test` 输出。 */
@@ -31,7 +33,9 @@ export const configurationKeys = {
   /** 是否展示 case 级运行入口。 */
   showCaseRun: 'goBench.tableTests.showCaseRun',
   /** 是否启用实验性的 VSCode Testing API 测试树原型。 */
-  testingApiEnabled: 'goBench.tableTests.testingApi.enabled'
+  testingApiEnabled: 'goBench.tableTests.testingApi.enabled',
+  /** Testing API 测试树展示模式。 */
+  testingApiTreeMode: 'goBench.tableTests.testingApi.treeMode'
 } as const;
 
 /** 里程碑 0 对配置默认值做单元测试，防止 manifest 和代码侧配置漂移。 */
@@ -40,5 +44,6 @@ export const defaultTableTestConfig = {
   nameFields: ['name', 'desc', 'caseName', 'title'],
   showFunctionRun: true,
   showCaseRun: true,
-  testingApiEnabled: false
+  testingApiEnabled: false,
+  testingApiTreeMode: 'goBench'
 } as const;

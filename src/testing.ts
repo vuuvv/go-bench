@@ -28,7 +28,7 @@ import {
 import type { TableTestConfig } from './tableTestConfig';
 
 const controllerId = 'go-bench.tableTests';
-const controllerLabel = 'Go Bench Table Tests';
+const controllerLabel = 'Go Bench';
 const goTestFilePattern = '**/*_test.go';
 const ignoredTestFilePattern = '**/{.git,node_modules,out}/**';
 
@@ -160,8 +160,10 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
         this.parser instanceof GoHelperParser ? new GoHelperParser({ nameFields: config.nameFields }) : this.parser;
       const parseResult = await parser.parseTestFile(file, document.getText());
       this.outputDiagnostics(file, parseResult);
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
       this.replaceFileItems(document.uri, file, createGoTestTreeNodes(parseResult, config, {
-        workspaceRoot: vscode.workspace.getWorkspaceFolder(document.uri)?.uri.fsPath
+        workspaceRoot: workspaceFolder?.uri.fsPath,
+        workspaceName: workspaceFolder?.name
       }));
     } catch (error) {
       this.output.appendLine(`Go Bench Testing API parse failed for ${file}: ${String(error)}`);
@@ -238,10 +240,6 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
       this.registeredItems.set(node.id, { item, target: node.runTarget, kind: node.kind });
     }
 
-    for (const child of node.children) {
-      item.children.add(this.createTestItem(uri, child));
-    }
-
     return item;
   }
 
@@ -250,11 +248,31 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
     if (!existing) {
       const item = this.createTestItem(uri, node);
       this.controller.items.add(item);
+      for (const child of node.children) {
+        this.mergeTestItemInto(item, uri, child);
+      }
       return item;
     }
 
     for (const child of node.children) {
-      existing.children.add(this.createTestItem(uri, child));
+      this.mergeTestItemInto(existing, uri, child);
+    }
+    return existing;
+  }
+
+  private mergeTestItemInto(parent: vscode.TestItem, uri: vscode.Uri, node: GoTestTreeNode): vscode.TestItem {
+    const existing = this.testItems.get(node.id);
+    if (!existing) {
+      const item = this.createTestItem(uri, node);
+      parent.children.add(item);
+      for (const child of node.children) {
+        this.mergeTestItemInto(item, uri, child);
+      }
+      return item;
+    }
+
+    for (const child of node.children) {
+      this.mergeTestItemInto(existing, uri, child);
     }
     return existing;
   }

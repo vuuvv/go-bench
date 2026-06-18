@@ -21,19 +21,28 @@ describe('table test configuration normalization', () => {
         nameFields: ['title', '', 42],
         showFunctionRun: false,
         showCaseRun: true,
-        testingApiEnabled: true
+        testingApiEnabled: true,
+        testingApiTreeMode: 'standardGo'
       }),
       {
         enabled: false,
         nameFields: ['title'],
         showFunctionRun: false,
         showCaseRun: true,
-        testingApiEnabled: true
+        testingApiEnabled: true,
+        testingApiTreeMode: 'standardGo'
       }
     );
   });
 
   it('falls back to default name fields when configured fields are unusable', () => {
     assert.deepEqual(normalizeTableTestConfig({ nameFields: ['', 1] }).nameFields, defaultTableTestConfig.nameFields);
+  });
+
+  it('falls back to the Go Bench tree mode for invalid Testing API tree mode values', () => {
+    assert.equal(
+      normalizeTableTestConfig({ testingApiTreeMode: 'unknown' }).testingApiTreeMode,
+      defaultTableTestConfig.testingApiTreeMode
+    );
   });
 });

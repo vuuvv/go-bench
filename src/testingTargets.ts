@@ -12,7 +12,7 @@ import type { GoTestRunTarget } from './runner';
 import type { TableTestConfig } from './tableTestConfig';
 
 /** Testing API 树节点类型。 */
-export type GoTestTreeNodeKind = 'package' | 'file' | 'function' | 'case';
+export type GoTestTreeNodeKind = 'workspace' | 'package' | 'file' | 'function' | 'case';
 
 /** 可映射为 VSCode `TestItem` 的纯数据节点。 */
 export type GoTestTreeNode = {
@@ -35,6 +35,8 @@ export type GoTestTreeNode = {
 export type GoTestTreeNodeOptions = {
   /** workspace root 用于把 package/directory 标签显示成和官方 Go 插件接近的相对路径。 */
   workspaceRoot?: string;
+  /** workspace folder 展示名；未提供时从 workspace root 推断。 */
+  workspaceName?: string;
 };
 
 /**
@@ -45,7 +47,7 @@ export type GoTestTreeNodeOptions = {
  */
 export function createGoTestTreeNodes(
   parseResult: GoTestFileParseResult,
-  config: Pick<TableTestConfig, 'showFunctionRun' | 'showCaseRun'>,
+  config: Pick<TableTestConfig, 'showFunctionRun' | 'showCaseRun' | 'testingApiTreeMode'>,
   options: GoTestTreeNodeOptions = {}
 ): GoTestTreeNode[] {
   if (!config.showFunctionRun) {
@@ -68,7 +70,7 @@ export function createGoTestTreeNodes(
       file: testFunction.file,
       range: testFunction.nameRange,
       runTarget: functionTarget,
-      children: config.showCaseRun
+      children: shouldShowCaseNodes(config)
         ? testFunction.tableCases.map(tableCase => ({
             id: createGoTestTreeNodeId(tableCase.file, tableCase.testName, tableCase.subtestPath),
             label: tableCase.subtestName,
@@ -93,19 +95,28 @@ export function createGoTestTreeNodes(
   }
 
   const packageDir = dirname(parseResult.file);
+  const workspaceRoot = options.workspaceRoot ?? packageDir;
   return [
     {
-      id: createGoTestPackageNodeId(packageDir),
-      label: createPackageNodeLabel(packageDir, options.workspaceRoot),
-      kind: 'package',
-      file: packageDir,
+      id: createGoTestWorkspaceNodeId(workspaceRoot),
+      label: createWorkspaceNodeLabel(workspaceRoot, options.workspaceName),
+      kind: 'workspace',
+      file: workspaceRoot,
       children: [
         {
-          id: createGoTestFileNodeId(parseResult.file),
-          label: basename(parseResult.file),
-          kind: 'file',
-          file: parseResult.file,
-          children: fileNodeChildren
+          id: createGoTestPackageNodeId(packageDir),
+          label: createPackageNodeLabel(packageDir, options.workspaceRoot),
+          kind: 'package',
+          file: packageDir,
+          children: [
+            {
+              id: createGoTestFileNodeId(parseResult.file),
+              label: basename(parseResult.file),
+              kind: 'file',
+              file: parseResult.file,
+              children: fileNodeChildren
+            }
+          ]
         }
       ]
     }
@@ -115,6 +126,11 @@ export function createGoTestTreeNodes(
 /** 构造 Testing API 节点稳定 ID。 */
 export function createGoTestTreeNodeId(file: string, testName: string, subtestPath: readonly string[] = []): string {
   return ['go-bench', 'test', file, testName, ...subtestPath].map(encodeURIComponent).join('/');
+}
+
+/** 构造 workspace/project 结构节点稳定 ID。 */
+export function createGoTestWorkspaceNodeId(workspaceRoot: string): string {
+  return ['go-bench', 'workspace', workspaceRoot].map(encodeURIComponent).join('/');
 }
 
 /** 构造 package/directory 结构节点稳定 ID。 */
@@ -140,4 +156,17 @@ function createPackageNodeLabel(packageDir: string, workspaceRoot: string | unde
     return packageDir;
   }
   return `./${relativeDir.split(sep).join('/')}`;
+}
+
+function createWorkspaceNodeLabel(workspaceRoot: string, workspaceName: string | undefined): string {
+  if (workspaceName && workspaceName !== '') {
+    return workspaceName;
+  }
+  return basename(workspaceRoot) || workspaceRoot;
+}
+
+function shouldShowCaseNodes(
+  config: Pick<TableTestConfig, 'showCaseRun' | 'testingApiTreeMode'>
+): boolean {
+  return config.testingApiTreeMode === 'goBench' && config.showCaseRun;
 }

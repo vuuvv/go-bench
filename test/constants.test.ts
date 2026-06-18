@@ -14,6 +14,7 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.debugTest, 'goBench.debugTest');
     assert.equal(commands.refreshTestTree, 'goBench.refreshTestTree');
     assert.equal(commands.refreshCurrentFileTestTree, 'goBench.refreshCurrentFileTestTree');
+    assert.equal(commands.toggleTestTreeMode, 'goBench.toggleTestTreeMode');
   });
 
   it('uses a stable output channel name', () => {
@@ -26,7 +27,8 @@ describe('extension skeleton constants', () => {
       nameFields: ['name', 'desc', 'caseName', 'title'],
       showFunctionRun: true,
       showCaseRun: true,
-      testingApiEnabled: false
+      testingApiEnabled: false,
+      testingApiTreeMode: 'goBench'
     });
   });
 
@@ -36,7 +38,8 @@ describe('extension skeleton constants', () => {
       'goBench.tableTests.nameFields',
       'goBench.tableTests.showFunctionRun',
       'goBench.tableTests.showCaseRun',
-      'goBench.tableTests.testingApi.enabled'
+      'goBench.tableTests.testingApi.enabled',
+      'goBench.tableTests.testingApi.treeMode'
     ]);
   });
 });

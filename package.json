@@ -41,8 +41,21 @@
       {
         "command": "goBench.refreshCurrentFileTestTree",
         "title": "Go Bench: Refresh Current File Test Tree"
+      },
+      {
+        "command": "goBench.toggleTestTreeMode",
+        "title": "Go Bench: Toggle Test Tree Mode"
       }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "goBench.toggleTestTreeMode",
+          "when": "view == workbench.view.testing",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "title": "Go Bench",
       "properties": {
@@ -78,6 +91,15 @@
           "type": "boolean",
           "default": false,
           "description": "Enable the experimental VSCode Testing API tree for Go Bench table-driven tests."
+        },
+        "goBench.tableTests.testingApi.treeMode": {
+          "type": "string",
+          "enum": [
+            "goBench",
+            "standardGo"
+          ],
+          "default": "goBench",
+          "description": "Choose the Test Explorer tree mode. goBench includes table-driven cases; standardGo shows the standard Go function-level tree shape."
         }
       }
     }

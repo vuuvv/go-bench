@@ -7,6 +7,9 @@
 
 import { defaultTableTestConfig } from './constants';
 
+/** Testing API 树展示模式。 */
+export type TestingApiTreeMode = 'goBench' | 'standardGo';
+
 /** table-driven test 运行入口使用的内部配置。 */
 export type TableTestConfig = {
   /** 是否启用 Go table-driven test 识别和 CodeLens。 */
@@ -19,6 +22,8 @@ export type TableTestConfig = {
   showCaseRun: boolean;
   /** 是否启用实验性的 VSCode Testing API 测试树。 */
   testingApiEnabled: boolean;
+  /** Testing API 测试树展示模式。 */
+  testingApiTreeMode: TestingApiTreeMode;
 };
 
 /** 用户配置的原始形状，测试和 VSCode 适配层都可以按需传入局部字段。 */
@@ -44,6 +49,13 @@ export function normalizeTableTestConfig(raw: RawTableTestConfig = {}): TableTes
     testingApiEnabled:
       typeof raw.testingApiEnabled === 'boolean'
         ? raw.testingApiEnabled
-        : defaultTableTestConfig.testingApiEnabled
+        : defaultTableTestConfig.testingApiEnabled,
+    testingApiTreeMode: isTestingApiTreeMode(raw.testingApiTreeMode)
+      ? raw.testingApiTreeMode
+      : defaultTableTestConfig.testingApiTreeMode
   };
+}
+
+function isTestingApiTreeMode(value: unknown): value is TestingApiTreeMode {
+  return value === 'goBench' || value === 'standardGo';
 }
