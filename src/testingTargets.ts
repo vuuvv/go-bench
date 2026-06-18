@@ -1,8 +1,9 @@
 /**
  * VSCode Testing API 原型使用的测试树模型。
  *
- * 该模块不依赖 VSCode API，只把 parser 的结果转换成稳定的树节点：package/directory 是根层级，
- * 文件节点下再挂测试函数和 table case。可执行节点携带可直接传给 runner 的 `GoTestRunTarget`。
+ * 该模块不依赖 VSCode API，只把 parser 的结果转换成稳定的树节点：Go module 是根层级，module
+ * 内的目录节点下再挂文件、测试函数和 table case。可执行节点携带可直接传给 runner 的
+ * `GoTestRunTarget`。
  * 真实 Testing API 适配层只负责把这些纯数据映射成 `TestItem`，避免 UI 原型和识别逻辑耦合。
  */
 
@@ -12,7 +13,7 @@ import type { GoTestRunTarget } from './runner';
 import type { TableTestConfig } from './tableTestConfig';
 
 /** Testing API 树节点类型。 */
-export type GoTestTreeNodeKind = 'workspace' | 'package' | 'file' | 'function' | 'case';
+export type GoTestTreeNodeKind = 'module' | 'package' | 'file' | 'function' | 'case';
 
 /** 可映射为 VSCode `TestItem` 的纯数据节点。 */
 export type GoTestTreeNode = {
@@ -33,10 +34,10 @@ export type GoTestTreeNode = {
 };
 
 export type GoTestTreeNodeOptions = {
-  /** workspace root 用于把 package/directory 标签显示成和官方 Go 插件接近的相对路径。 */
-  workspaceRoot?: string;
-  /** workspace folder 展示名；未提供时从 workspace root 推断。 */
-  workspaceName?: string;
+  /** go.mod 所在目录，用于作为 module 下级目录标签的相对路径基准。 */
+  moduleDir: string;
+  /** go.mod 中声明的 module path，用作 module 节点展示名。 */
+  moduleName: string;
 };
 
 /**
@@ -48,7 +49,7 @@ export type GoTestTreeNodeOptions = {
 export function createGoTestTreeNodes(
   parseResult: GoTestFileParseResult,
   config: Pick<TableTestConfig, 'showFunctionRun' | 'showCaseRun' | 'testingApiTreeMode'>,
-  options: GoTestTreeNodeOptions = {}
+  options: GoTestTreeNodeOptions
 ): GoTestTreeNode[] {
   if (!config.showFunctionRun) {
     return [];
@@ -95,17 +96,16 @@ export function createGoTestTreeNodes(
   }
 
   const packageDir = dirname(parseResult.file);
-  const workspaceRoot = options.workspaceRoot ?? packageDir;
   return [
     {
-      id: createGoTestWorkspaceNodeId(workspaceRoot),
-      label: createWorkspaceNodeLabel(workspaceRoot, options.workspaceName),
-      kind: 'workspace',
-      file: workspaceRoot,
+      id: createGoTestModuleNodeId(options.moduleDir),
+      label: options.moduleName,
+      kind: 'module',
+      file: options.moduleDir,
       children: [
         {
           id: createGoTestPackageNodeId(packageDir),
-          label: createPackageNodeLabel(packageDir, options.workspaceRoot),
+          label: createPackageNodeLabel(packageDir, options.moduleDir),
           kind: 'package',
           file: packageDir,
           children: [
@@ -128,9 +128,9 @@ export function createGoTestTreeNodeId(file: string, testName: string, subtestPa
   return ['go-bench', 'test', file, testName, ...subtestPath].map(encodeURIComponent).join('/');
 }
 
-/** 构造 workspace/project 结构节点稳定 ID。 */
-export function createGoTestWorkspaceNodeId(workspaceRoot: string): string {
-  return ['go-bench', 'workspace', workspaceRoot].map(encodeURIComponent).join('/');
+/** 构造 Go module 结构节点稳定 ID。 */
+export function createGoTestModuleNodeId(moduleDir: string): string {
+  return ['go-bench', 'module', moduleDir].map(encodeURIComponent).join('/');
 }
 
 /** 构造 package/directory 结构节点稳定 ID。 */
@@ -143,26 +143,15 @@ export function createGoTestFileNodeId(file: string): string {
   return ['go-bench', 'file', file].map(encodeURIComponent).join('/');
 }
 
-function createPackageNodeLabel(packageDir: string, workspaceRoot: string | undefined): string {
-  if (!workspaceRoot) {
-    return packageDir;
-  }
-
-  const relativeDir = relative(workspaceRoot, packageDir);
+function createPackageNodeLabel(packageDir: string, moduleDir: string): string {
+  const relativeDir = relative(moduleDir, packageDir);
   if (relativeDir === '') {
     return '.';
   }
   if (relativeDir.startsWith('..') || isAbsolute(relativeDir)) {
     return packageDir;
   }
-  return `./${relativeDir.split(sep).join('/')}`;
-}
-
-function createWorkspaceNodeLabel(workspaceRoot: string, workspaceName: string | undefined): string {
-  if (workspaceName && workspaceName !== '') {
-    return workspaceName;
-  }
-  return basename(workspaceRoot) || workspaceRoot;
+  return relativeDir.split(sep).join('/');
 }
 
 function shouldShowCaseNodes(

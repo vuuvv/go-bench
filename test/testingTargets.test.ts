@@ -11,8 +11,8 @@ import { describe, it } from 'node:test';
 import type { GoTestFileParseResult, SourceRange } from '../src/parser';
 import {
   createGoTestFileNodeId,
+  createGoTestModuleNodeId,
   createGoTestPackageNodeId,
-  createGoTestWorkspaceNodeId,
   createGoTestTreeNodeId,
   createGoTestTreeNodes
 } from '../src/testingTargets';
@@ -56,25 +56,25 @@ function parseResult(): GoTestFileParseResult {
 }
 
 describe('Testing API target tree generation', () => {
-  it('creates package and file roots before function and table case targets', () => {
-    const [workspaceNode] = createGoTestTreeNodes(
+  it('creates module and package roots before function and table case targets', () => {
+    const [moduleNode] = createGoTestTreeNodes(
       parseResult(),
       {
         showFunctionRun: true,
         showCaseRun: true,
         testingApiTreeMode: 'goBench'
       },
-      { workspaceRoot: join('/', 'workspace', 'repo'), workspaceName: 'repo' }
+      { moduleDir: join('/', 'workspace', 'repo'), moduleName: 'example.com/repo' }
     );
 
-    assert.equal(workspaceNode?.id, createGoTestWorkspaceNodeId(join('/', 'workspace', 'repo')));
-    assert.equal(workspaceNode?.label, 'repo');
-    assert.equal(workspaceNode?.kind, 'workspace');
-    assert.equal(workspaceNode?.runTarget, undefined);
+    assert.equal(moduleNode?.id, createGoTestModuleNodeId(join('/', 'workspace', 'repo')));
+    assert.equal(moduleNode?.label, 'example.com/repo');
+    assert.equal(moduleNode?.kind, 'module');
+    assert.equal(moduleNode?.runTarget, undefined);
 
-    const [packageNode] = workspaceNode?.children ?? [];
+    const [packageNode] = moduleNode?.children ?? [];
     assert.equal(packageNode?.id, createGoTestPackageNodeId(join('/', 'workspace', 'repo', 'pkg')));
-    assert.equal(packageNode?.label, './pkg');
+    assert.equal(packageNode?.label, 'pkg');
     assert.equal(packageNode?.kind, 'package');
     assert.equal(packageNode?.runTarget, undefined);
 
@@ -105,19 +105,30 @@ describe('Testing API target tree generation', () => {
 
   it('honors Testing API prototype visibility switches', () => {
     assert.deepEqual(
-      createGoTestTreeNodes(parseResult(), {
-        showFunctionRun: false,
-        showCaseRun: true,
-        testingApiTreeMode: 'goBench'
-      }),
+      createGoTestTreeNodes(
+        parseResult(),
+        {
+          showFunctionRun: false,
+          showCaseRun: true,
+          testingApiTreeMode: 'goBench'
+        },
+        { moduleDir: join('/', 'workspace', 'repo'), moduleName: 'example.com/repo' }
+      ),
       []
     );
 
-    const [root] = createGoTestTreeNodes(parseResult(), {
-      showFunctionRun: true,
-      showCaseRun: false,
-      testingApiTreeMode: 'goBench'
-    });
+    const [root] = createGoTestTreeNodes(
+      parseResult(),
+      {
+        showFunctionRun: true,
+        showCaseRun: false,
+        testingApiTreeMode: 'goBench'
+      },
+      {
+        moduleDir: join('/', 'workspace', 'repo'),
+        moduleName: 'example.com/repo'
+      }
+    );
     const [packageNode] = root?.children ?? [];
     const [fileNode] = packageNode?.children ?? [];
     const [testFunction] = fileNode?.children ?? [];
@@ -125,11 +136,18 @@ describe('Testing API target tree generation', () => {
   });
 
   it('uses standard Go tree mode to hide Go Bench table cases', () => {
-    const [root] = createGoTestTreeNodes(parseResult(), {
-      showFunctionRun: true,
-      showCaseRun: true,
-      testingApiTreeMode: 'standardGo'
-    });
+    const [root] = createGoTestTreeNodes(
+      parseResult(),
+      {
+        showFunctionRun: true,
+        showCaseRun: true,
+        testingApiTreeMode: 'standardGo'
+      },
+      {
+        moduleDir: join('/', 'workspace', 'repo'),
+        moduleName: 'example.com/repo'
+      }
+    );
 
     const [packageNode] = root?.children ?? [];
     const [fileNode] = packageNode?.children ?? [];

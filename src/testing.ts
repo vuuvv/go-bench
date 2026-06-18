@@ -16,6 +16,7 @@ import {
   type GoTestJsonStreamRecord
 } from './goTestJson';
 import { buildGoTestDebugConfiguration, type GoTestDebugConfiguration } from './debugger';
+import { resolveGoModuleInfo } from './goModule';
 import { GoHelperParser, isGoTestFile } from './parser';
 import type { GoTestFileParseResult, GoTestParser, SourceRange } from './parser';
 import { runGoTestTarget, type GoTestRunTarget } from './runner';
@@ -160,10 +161,15 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
         this.parser instanceof GoHelperParser ? new GoHelperParser({ nameFields: config.nameFields }) : this.parser;
       const parseResult = await parser.parseTestFile(file, document.getText());
       this.outputDiagnostics(file, parseResult);
-      const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
+      const moduleInfo = resolveGoModuleInfo(file);
+      if (!moduleInfo) {
+        this.output.appendLine(`Go Bench Testing API skipped ${file}: cannot find a valid go.mod module declaration.`);
+        this.removeFileItems(file);
+        return;
+      }
       this.replaceFileItems(document.uri, file, createGoTestTreeNodes(parseResult, config, {
-        workspaceRoot: workspaceFolder?.uri.fsPath,
-        workspaceName: workspaceFolder?.name
+        moduleDir: moduleInfo.dir,
+        moduleName: moduleInfo.name
       }));
     } catch (error) {
       this.output.appendLine(`Go Bench Testing API parse failed for ${file}: ${String(error)}`);
@@ -254,6 +260,7 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
       return item;
     }
 
+    this.updateTestItem(existing, node);
     for (const child of node.children) {
       this.mergeTestItemInto(existing, uri, child);
     }
@@ -271,10 +278,16 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
       return item;
     }
 
+    this.updateTestItem(existing, node);
     for (const child of node.children) {
       this.mergeTestItemInto(existing, uri, child);
     }
     return existing;
+  }
+
+  private updateTestItem(item: vscode.TestItem, node: GoTestTreeNode): void {
+    item.label = node.label;
+    item.range = node.range ? toVsCodeRange(node.range) : undefined;
   }
 
   private removeFileItems(file: string): void {

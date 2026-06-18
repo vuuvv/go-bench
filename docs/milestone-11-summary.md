@@ -4,15 +4,16 @@
 
 - Test Explorer 根节点从 `Go Bench Table Tests` 改为 `Go Bench`。
 - Test Explorer 不再把 `TestXxx` 函数直接作为根层级节点。
-- Testing API 测试树改为 workspace/project -> package/directory -> `_test.go` file -> `TestXxx` -> table case。
+- Testing API 测试树改为 Go module -> package/directory -> `_test.go` file -> `TestXxx` -> table case。
 - 新增 `goBench.tableTests.testingApi.treeMode`，默认 `goBench`，可切换到 `standardGo` 函数级树。
-- 当前文件刷新会把文件节点合并到已有 workspace/project 和 package/directory 分组中。
-- 当前文件没有可运行测试时，会移除文件节点，并裁剪空 workspace/project 和 package/directory 分组。
+- 当前文件刷新会把文件节点合并到已有 Go module 和 package/directory 分组中。
+- 当前文件没有可运行测试时，会移除文件节点，并裁剪空 Go module 和 package/directory 分组。
 - 运行 package/directory 或文件结构节点时，会展开到其下可执行函数和 case 节点。
 
 ## 核心文件和模块
 
-- `src/testingTargets.ts`：生成 workspace、package、file、function、case 五层纯数据树，并提供结构节点稳定 ID。
+- `src/goModule.ts`：从测试文件向上查找最近的有效 `go.mod`，并解析 module path。
+- `src/testingTargets.ts`：生成 module、package、file、function、case 五层纯数据树，并提供结构节点稳定 ID。
 - `src/testing.ts`：合并结构节点、按文件替换子树、裁剪空分组，并让结构节点运行请求展开到可执行子节点。
 - `src/constants.ts`、`src/tableTestConfig.ts`、`package.json`：新增 Testing API 树模式命令和配置。
 - `test/testingTargets.test.ts`：覆盖 package/file 层级和可执行节点目标。
@@ -21,14 +22,15 @@
 ## 实现思路与设计取舍
 
 - 结构层仍保留在无 VSCode 依赖的 `testingTargets` 中，便于用单元测试保护树形数据。
-- workspace/project 节点使用 VSCode workspace folder 名称；package/directory 标签在能确定 workspace root 时显示为 `./relative/path`，否则回退为绝对目录。
-- workspace、package 和 file 节点不携带 `GoTestRunTarget`，避免把结构节点误当成单个测试。
+- module 节点使用 `go.mod` 中的 module path；package/directory 标签显示为相对 module 根目录的路径，不带 `./` 前缀。
+- module、package 和 file 节点不携带 `GoTestRunTarget`，避免把结构节点误当成单个测试。
+- 找不到有效 `go.mod` 的测试文件不会进入 Go Bench 测试树，并会在 output channel 记录诊断。
 - `goBench` 模式显示 table case；`standardGo` 模式隐藏 table case，用于快速回到官方 Go 插件更接近的函数级树形结构。
 - Test Explorer 运行结构节点时，适配层会收集后代 function/case 节点；函数节点作为集合运行目标，case 节点仍可单独运行。
 
 ## 已支持和不支持的模式
 
-- 已支持：单文件刷新、workspace 全量刷新、workspace/package/file 结构分组、函数节点运行、case 节点运行、结构节点展开运行、Go Bench/standard Go 树模式切换。
+- 已支持：单文件刷新、workspace 全量刷新、module/package/file 结构分组、函数节点运行、case 节点运行、结构节点展开运行、Go Bench/standard Go 树模式切换。
 - 暂不支持：Extension Host 自动化断言真实 VSCode Test Explorer UI 层级。
 
 ## 当前可进行操作
@@ -43,7 +45,7 @@
 
 - 用途：验证 parser、runner、CodeLens、Testing API 树模型和 debug 配置构造。
 - 命令：`npm test`
-- 预期结果：当前通过 43 个断言，全部通过。
+- 预期结果：当前通过 45 个断言，全部通过。
 
 ### 运行 lint
 
@@ -55,8 +57,8 @@
 
 - 用途：确认真实 VSCode UI 不再以 `TestXxx` 作为根层级。
 - 入口：启用 `goBench.tableTests.testingApi.enabled`，执行 `Go Bench: Refresh Test Tree`。
-- 预期结果：`Go Bench` 下先显示 workspace/project，再显示 package/directory、`_test.go` 文件、`TestXxx` 和 table case。
-- 失败优先检查：当前文件是否为 `_test.go`、Testing API 配置是否启用、output channel 中是否有 parser diagnostic。
+- 预期结果：`Go Bench` 下先显示 `go.mod` 中的 module path，再显示相对 module 的 package/directory、`_test.go` 文件、`TestXxx` 和 table case。
+- 失败优先检查：当前文件是否为 `_test.go`、Testing API 配置是否启用、测试文件上级目录是否存在有效 `go.mod`、output channel 中是否有 parser diagnostic。
 
 ### 手动验证树模式切换
 
@@ -69,7 +71,7 @@
 
 - 日期：2026-06-19
 - 命令：`npm test`
-  - 结果：通过，Node test 运行 43 个断言，全部通过。
+  - 结果：通过，Node test 运行 45 个断言，全部通过。
 - 命令：`npm run lint`
   - 结果：通过，ESLint 未报告问题。
 

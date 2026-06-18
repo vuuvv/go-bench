@@ -223,23 +223,26 @@ go test ./path/to/package -run '^TestName$/^case name$'
 
 测试树结构：
 
-- Test Explorer 的树形结构必须参考官方 Go 插件的测试树组织方式，优先表达 Go 代码的项目结构，而不是把测试函数名称直接平铺到根层级。
+- Test Explorer 的树形结构必须参考官方 Go 插件的测试树组织方式，优先表达 Go module 和 package 结构，而不是把测试函数名称直接平铺到根层级。
 - Test Explorer 中插件测试控制器的展示名称必须是 `Go Bench`，不再使用 `Go Bench Table Tests`。
-- `Go Bench` 根节点下的第一层子节点必须是项目目录或 workspace folder；项目目录下再按 package 或目录分组，package 下再按 `_test.go` 文件、测试函数、subtest/table case 逐级展开。
-- 推荐 Go Bench 层级：`Go Bench` -> `workspace folder` / `project directory` -> `package` / `directory` -> `_test.go file` -> `TestXxx` -> `subtest` / `table case`。
+- `Go Bench` 根节点下的第一层子节点必须是有效 Go module，即包含有效 `go.mod` 的目录对应的 module 节点；节点展示名必须使用 `go.mod` 中的 module path，而不是目录名。
+- module 节点下再按相对 module 根目录的 package 或目录分组；目录标签不得带前缀 `./`，module 根目录本身显示为 `.`。
+- package 或目录节点下再按 `_test.go` 文件、测试函数、subtest/table case 逐级展开。
+- 推荐 Go Bench 层级：`Go Bench` -> `module path` -> `package` / `relative directory` -> `_test.go file` -> `TestXxx` -> `subtest` / `table case`。
 - 当 `goBench.tableTests.testingApi.enabled` 为 `true` 时，默认展示 Go Bench 树形结构，即包含可解析 table case 的增强测试树。
 - 插件应提供切换入口，允许用户在 Go Bench 增强测试树和更接近官方 Go 插件的标准函数级测试树之间切换；可通过 Test Explorer 按钮、命令或配置实现。
-- 标准 Go 测试树模式应保留 `Go Bench` -> `workspace folder` -> `package` -> `_test.go file` -> `TestXxx` 层级，但不展开 Go Bench 特有的 table case 节点。
+- 标准 Go 测试树模式应保留 `Go Bench` -> `module path` -> `package` / `relative directory` -> `_test.go file` -> `TestXxx` 层级，但不展开 Go Bench 特有的 table case 节点。
 - 单文件刷新或当前文件扫描时，也必须把发现的测试合并到同一套结构节点中，不能为当前文件单独创建以 `TestXxx` 开头的根节点。
-- 不允许出现多个根元素直接就是 package、文件名、`TestNormalize`、`TestParse`、`TestXxx` 这类跳过项目目录层级的结构。
-- 当项目目录、package、目录或文件节点下没有可运行测试时，应移除空结构节点，避免 Test Explorer 中残留无意义分组。
+- 不允许出现多个根元素直接就是 package、文件名、`TestNormalize`、`TestParse`、`TestXxx` 这类跳过 module 层级的结构。
+- 当测试文件不属于任何有效 Go module 时，不应出现在 Go Bench 测试树中，并应在诊断输出中说明缺少有效 `go.mod`。
+- 当 module、package、目录或文件节点下没有可运行测试时，应移除空结构节点，避免 Test Explorer 中残留无意义分组。
 
 示例结构：
 
 ```text
 Go Bench
-└── go-bench
-    └── ./internal/normalize
+└── example.com/go-bench
+    └── internal/normalize
         └── normalize_test.go
             └── TestNormalize
                 ├── empty
