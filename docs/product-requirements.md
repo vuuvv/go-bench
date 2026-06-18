@@ -220,6 +220,26 @@ go test ./path/to/package -run '^TestName$/^case name$'
 
 当插件接入 VSCode Testing API 后，Test Explorer 中的测试集合节点必须表现为真实的测试树入口，而不是只代表一个单独的聚合测试状态。
 
+测试树结构：
+
+- Test Explorer 的树形结构必须参考官方 Go 插件的测试树组织方式，优先表达 Go 代码的项目结构，而不是把测试函数名称直接平铺到根层级。
+- 根层级应是插件测试控制器或工作区下的结构节点；其下至少按 package 或目录分组，package 下再按 `_test.go` 文件、测试函数、subtest/table case 逐级展开。
+- 推荐层级：`workspace folder` / `module` -> `package` / `directory` -> `_test.go file` -> `TestXxx` -> `subtest` / `table case`。
+- 单文件刷新或当前文件扫描时，也必须把发现的测试合并到同一套结构节点中，不能为当前文件单独创建以 `TestXxx` 开头的根节点。
+- 不允许出现多个根元素直接就是 `TestNormalize`、`TestParse`、`TestXxx` 这类测试名称的结构。
+- 当 package、目录或文件节点下没有可运行测试时，应移除空结构节点，避免 Test Explorer 中残留无意义分组。
+
+示例结构：
+
+```text
+Go Bench Table Tests
+└── ./internal/normalize
+    └── normalize_test.go
+        └── TestNormalize
+            ├── empty
+            └── simple
+```
+
 集合节点运行行为：
 
 - 用户在 Test Explorer 中点击测试集合节点运行时，插件必须运行该集合下所有可执行子测试。
