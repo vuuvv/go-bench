@@ -2,7 +2,7 @@
   "name": "go-bench",
   "displayName": "Go Bench",
   "description": "Run Go table-driven test cases from CodeLens and the VS Code Test Explorer.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "vuuvv",
   "license": "MIT",
   "repository": {
@@ -109,7 +109,8 @@
     "watch": "tsc -watch -p ./",
     "lint": "eslint .",
     "test": "npm run compile && node --test \"out/test/**/*.test.js\"",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "npm run compile",
+    "package": "npm run compile && npx @vscode/vsce package"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
