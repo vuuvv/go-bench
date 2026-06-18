@@ -1,0 +1,8 @@
+node_modules
+src
+test
+docs
+.vscode
+*.map
+tsconfig.json
+eslint.config.mjs

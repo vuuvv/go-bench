@@ -1,0 +1,50 @@
+/**
+ * 该测试保护 VSCode manifest 的骨架契约。
+ * 里程碑 0 的关键交付在 `package.json` 中声明，单测直接校验这些声明，避免后续改动误删激活事件或配置项。
+ */
+
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, it } from 'node:test';
+import { commands, configurationKeys, defaultTableTestConfig } from '../src/constants';
+
+type ExtensionManifest = {
+  activationEvents: string[];
+  contributes: {
+    commands: Array<{ command: string; title: string }>;
+    configuration: {
+      properties: Record<string, { default: unknown }>;
+    };
+  };
+};
+
+const manifest = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as ExtensionManifest;
+
+describe('VSCode extension manifest', () => {
+  it('activates for Go files, Go test workspaces, and the no-op command', () => {
+    assert.deepEqual(manifest.activationEvents, [
+      'onLanguage:go',
+      'workspaceContains:**/*_test.go',
+      'onCommand:goPlus.noop'
+    ]);
+  });
+
+  it('contributes the no-op command used to verify extension startup', () => {
+    assert.deepEqual(manifest.contributes.commands, [
+      {
+        command: commands.noop,
+        title: 'Go Plus: No-op'
+      }
+    ]);
+  });
+
+  it('contributes table test configuration defaults', () => {
+    const properties = manifest.contributes.configuration.properties;
+
+    assert.equal(properties[configurationKeys.enabled].default, defaultTableTestConfig.enabled);
+    assert.deepEqual(properties[configurationKeys.nameFields].default, defaultTableTestConfig.nameFields);
+    assert.equal(properties[configurationKeys.showFunctionRun].default, defaultTableTestConfig.showFunctionRun);
+    assert.equal(properties[configurationKeys.showCaseRun].default, defaultTableTestConfig.showCaseRun);
+  });
+});
