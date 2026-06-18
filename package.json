@@ -2,7 +2,7 @@
   "name": "go-bench",
   "displayName": "Go Bench",
   "description": "Run Go table-driven test cases from CodeLens and the VS Code Test Explorer.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "vuuvv",
   "license": "MIT",
   "repository": {
@@ -14,6 +14,15 @@
   },
   "categories": [
     "Testing"
+  ],
+  "keywords": [
+    "go",
+    "bench",
+    "test",
+    "tdd",
+    "table",
+    "driven",
+    "tests"
   ],
   "activationEvents": [
     "onLanguage:go",
