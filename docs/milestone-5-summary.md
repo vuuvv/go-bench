@@ -2,9 +2,9 @@
 
 ## 完成功能范围
 
-- 新增实验配置 `goPlus.tableTests.testingApi.enabled`，默认关闭。
+- 新增实验配置 `goBench.tableTests.testingApi.enabled`，默认关闭。
 - 新增 Testing API 纯树模型，将 parser 结果转换为函数节点和 table case 子节点。
-- 新增 VSCode Testing API 原型适配层，按配置创建 `Go Plus Table Tests` controller。
+- 新增 VSCode Testing API 原型适配层，按配置创建 `Go Bench Table Tests` controller。
 - Test Explorer 运行请求复用现有 `go test -run` runner，与 CodeLens 保持同一执行路径。
 - 文档编辑、保存和配置变化时刷新实验测试树。
 - 补充 Testing API 树模型单元测试、manifest/config 测试。
@@ -31,13 +31,13 @@
 
 ## 当前插件内可进行的操作
 
-- 默认行为：不显示 Go Plus Testing API 测试树，继续使用 CodeLens 的 `Run Test` 和 `Run Case`。
-- 启用实验测试树：在 VSCode settings 中设置 `goPlus.tableTests.testingApi.enabled` 为 `true`。
-- 查看测试树：启用后打开 Go `_test.go` 文件，Test Explorer 会出现 `Go Plus Table Tests` 下的测试函数和可解析 table case。
+- 默认行为：不显示 Go Bench Testing API 测试树，继续使用 CodeLens 的 `Run Test` 和 `Run Case`。
+- 启用实验测试树：在 VSCode settings 中设置 `goBench.tableTests.testingApi.enabled` 为 `true`。
+- 查看测试树：启用后打开 Go `_test.go` 文件，Test Explorer 会出现 `Go Bench Table Tests` 下的测试函数和可解析 table case。
 - 运行函数节点：在 Test Explorer 中运行 `TestXxx` 节点，会复用 runner 执行整个测试函数。
 - 运行 case 节点：运行 table case 子节点，会执行对应 `go test -run` subtest path。
-- 查看输出：运行过程和 Go 原始 stdout/stderr 仍写入 `Go Plus` output channel，Test Explorer 显示通过或失败状态。
-- 关闭实验测试树：将 `goPlus.tableTests.testingApi.enabled` 改回 `false`，插件会释放 controller；CodeLens 不受影响。
+- 查看输出：运行过程和 Go 原始 stdout/stderr 仍写入 `Go Bench` output channel，Test Explorer 显示通过或失败状态。
+- 关闭实验测试树：将 `goBench.tableTests.testingApi.enabled` 改回 `false`，插件会释放 controller；CodeLens 不受影响。
 - 安全忽略不支持 case：Testing API 与 CodeLens 使用同一 parser 结果，动态或不支持 case 不会出现在测试树中。
 
 ## 当前可进行操作
@@ -73,15 +73,15 @@
 ### 手动启用 Testing API 原型
 
 - 用途：在 VSCode Test Explorer 中验证测试树 UX。
-- 入口：在 VSCode settings 设置 `goPlus.tableTests.testingApi.enabled` 为 `true`，然后打开 `_test.go` 文件。
-- 预期结果：Test Explorer 显示 `Go Plus Table Tests`，包含测试函数节点和静态可解析的 table case 子节点。
-- 失败优先检查：配置是否生效、文件是否已打开、`goPlus.tableTests.enabled` 是否为 `true`、output channel 是否有 parser 诊断。
+- 入口：在 VSCode settings 设置 `goBench.tableTests.testingApi.enabled` 为 `true`，然后打开 `_test.go` 文件。
+- 预期结果：Test Explorer 显示 `Go Bench Table Tests`，包含测试函数节点和静态可解析的 table case 子节点。
+- 失败优先检查：配置是否生效、文件是否已打开、`goBench.tableTests.enabled` 是否为 `true`、output channel 是否有 parser 诊断。
 
 ### 手动运行测试树节点
 
 - 用途：确认 Testing API 运行路径与 CodeLens 一致。
 - 入口：在 Test Explorer 中点击函数节点或 case 子节点的 run。
-- 预期结果：Test Explorer 显示通过或失败状态，`Go Plus` output channel 显示实际 `go test` 命令和原始输出。
+- 预期结果：Test Explorer 显示通过或失败状态，`Go Bench` output channel 显示实际 `go test` 命令和原始输出。
 - 失败优先检查：Go 是否在 PATH 中、测试文件是否位于 workspace 内、case 是否属于已支持静态模式。
 
 ## 测试记录

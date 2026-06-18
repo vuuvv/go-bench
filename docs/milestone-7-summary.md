@@ -2,18 +2,18 @@
 
 ## 完成功能范围
 
-- 新增命令 `goPlus.refreshCurrentFileTestTree`，在命令面板显示为 `Go Plus: Refresh Current File Test Tree`。
+- 新增命令 `goBench.refreshCurrentFileTestTree`，在命令面板显示为 `Go Bench: Refresh Current File Test Tree`。
 - 在 Go `_test.go` 文件顶部生成 `Refresh Test Tree` CodeLens。
-- 点击顶部 CodeLens 时，只刷新当前文件对应的 `Go Plus Table Tests` 测试树节点。
+- 点击顶部 CodeLens 时，只刷新当前文件对应的 `Go Bench Table Tests` 测试树节点。
 - 命令面板执行时，如果没有传入文件路径，会从当前活动编辑器推断文件。
 - 当前文件刷新复用 Testing API 单文件刷新逻辑，并优先使用已打开编辑器中的未保存文本。
-- Testing API 未启用时，点击 CodeLens 或执行命令会提示开启 `goPlus.tableTests.testingApi.enabled`。
+- Testing API 未启用时，点击 CodeLens 或执行命令会提示开启 `goBench.tableTests.testingApi.enabled`。
 - 更新 manifest、命令常量和 CodeLens 目标生成测试。
 
 ## 核心文件和模块
 
 - `src/constants.ts`：新增 `commands.refreshCurrentFileTestTree`。
-- `package.json`：新增 `onCommand:goPlus.refreshCurrentFileTestTree` activation event 和命令贡献。
+- `package.json`：新增 `onCommand:goBench.refreshCurrentFileTestTree` activation event 和命令贡献。
 - `src/codelensTargets.ts`：新增顶部 `Refresh Test Tree` CodeLens 目标，锚定文件第 0 行第 0 列。
 - `src/codelens.ts`：根据 CodeLens target 类型分发到 run 命令或当前文件刷新命令。
 - `src/extension.ts`：注册当前文件刷新命令，并处理配置未开启、非 `_test.go` 文件和当前编辑器兜底。
@@ -31,11 +31,11 @@
 
 ## 当前插件内可进行的操作
 
-- 启用实验测试树：设置 `goPlus.tableTests.testingApi.enabled` 为 `true`。
+- 启用实验测试树：设置 `goBench.tableTests.testingApi.enabled` 为 `true`。
 - 打开 Go `_test.go` 文件：文件顶部会出现 `Refresh Test Tree` CodeLens。
-- 点击顶部 CodeLens：刷新当前文件在 Test Explorer 的 `Go Plus Table Tests` 节点。
-- 执行命令面板命令：运行 `Go Plus: Refresh Current File Test Tree`，插件会从当前活动编辑器推断文件并刷新。
-- 未启用 Testing API 时点击：插件会提示开启 `goPlus.tableTests.testingApi.enabled`，不会报错。
+- 点击顶部 CodeLens：刷新当前文件在 Test Explorer 的 `Go Bench Table Tests` 节点。
+- 执行命令面板命令：运行 `Go Bench: Refresh Current File Test Tree`，插件会从当前活动编辑器推断文件并刷新。
+- 未启用 Testing API 时点击：插件会提示开启 `goBench.tableTests.testingApi.enabled`，不会报错。
 - 当前文件不是 `_test.go` 时执行命令：插件会提示先打开 Go 测试文件。
 - 原有 `Run Test` 和 `Run Case` CodeLens 仍保持不变。
 
@@ -65,9 +65,9 @@
 ### 手动刷新当前文件测试树
 
 - 用途：确认顶部 CodeLens 只刷新当前文件对应测试树节点。
-- 入口：启用 `goPlus.tableTests.testingApi.enabled`，打开 Go `_test.go` 文件，点击文件顶部 `Refresh Test Tree`。
+- 入口：启用 `goBench.tableTests.testingApi.enabled`，打开 Go `_test.go` 文件，点击文件顶部 `Refresh Test Tree`。
 - 预期结果：Test Explorer 中当前文件对应的 `TestXxx` 和 table case 节点被重建；其他文件节点不被全量清空。
-- 失败优先检查：Testing API 是否启用、文件是否以 `_test.go` 结尾、`Go Plus` output channel 是否有 parser 诊断。
+- 失败优先检查：Testing API 是否启用、文件是否以 `_test.go` 结尾、`Go Bench` output channel 是否有 parser 诊断。
 
 ## 测试记录
 

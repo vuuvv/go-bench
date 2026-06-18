@@ -1,8 +1,8 @@
-# Go Plus 代码注释规范
+# Go Bench 代码注释规范
 
 ## 目标
 
-Go Plus 的核心逻辑会处理 Go AST、源码位置、`go test -run` 正则路径和 VSCode Extension Host 生命周期。注释用于解释模块职责、关键算法、边界条件和设计取舍，帮助维护者判断某个分支为什么存在。
+Go Bench 的核心逻辑会处理 Go AST、源码位置、`go test -run` 正则路径和 VSCode Extension Host 生命周期。注释用于解释模块职责、关键算法、边界条件和设计取舍，帮助维护者判断某个分支为什么存在。
 
 ## 基本要求
 

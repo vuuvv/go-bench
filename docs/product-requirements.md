@@ -1,8 +1,8 @@
-# Go Plus VSCode 插件产品需求文档
+# Go Bench VSCode 插件产品需求文档
 
 ## 1. 产品概述
 
-Go Plus 是一个用于增强官方 Go 开发体验的 VSCode 插件。当前阶段的核心目标是识别 Go 代码中的 table-driven tests，准确定位每一个测试用例，并在编辑器中展示可直接运行的按钮。
+Go Bench 是一个用于增强官方 Go 开发体验的 VSCode 插件。当前阶段的核心目标是识别 Go 代码中的 table-driven tests，准确定位每一个测试用例，并在编辑器中展示可直接运行的按钮。
 
 这个插件应当自然融入 Go 开发者已有的工作方式：编写测试、看到可运行标记、运行整个测试函数或单个表格用例，并在测试失败时快速跳转到对应用例。
 
@@ -198,10 +198,10 @@ go test ./path/to/package -run '^TestName$/^case name$'
 
 ```json
 {
-  "goPlus.tableTests.enabled": true,
-  "goPlus.tableTests.nameFields": ["name", "desc", "caseName", "title"],
-  "goPlus.tableTests.showFunctionRun": true,
-  "goPlus.tableTests.showCaseRun": true
+  "goBench.tableTests.enabled": true,
+  "goBench.tableTests.nameFields": ["name", "desc", "caseName", "title"],
+  "goBench.tableTests.showFunctionRun": true,
+  "goBench.tableTests.showCaseRun": true
 }
 ```
 
@@ -209,9 +209,9 @@ go test ./path/to/package -run '^TestName$/^case name$'
 
 ```json
 {
-  "goPlus.tableTests.runInTerminal": true,
-  "goPlus.tableTests.extraGoTestArgs": [],
-  "goPlus.tableTests.packagePattern": "directory"
+  "goBench.tableTests.runInTerminal": true,
+  "goBench.tableTests.extraGoTestArgs": [],
+  "goBench.tableTests.packagePattern": "directory"
 }
 ```
 
@@ -540,7 +540,7 @@ runner 必须生成兼容 Go subtest 选择规则的正则路径：
 
 ### 里程碑 6：项目级测试树刷新
 
-- 添加命令或按钮，允许用户主动重新扫描整个 workspace 并生成 Go Plus 测试树。
+- 添加命令或按钮，允许用户主动重新扫描整个 workspace 并生成 Go Bench 测试树。
 - 将刷新能力接入 VSCode Test Explorer 的 Testing API refresh 入口。
 - 扫描未打开的 `_test.go` 文件，并优先使用已打开文档的未保存内容。
 - 刷新时清理旧测试树，避免删除、重命名或不再可解析的文件残留过期节点。
@@ -548,9 +548,9 @@ runner 必须生成兼容 Go subtest 选择规则的正则路径：
 
 退出标准：
 
-- 用户可以通过命令面板执行 `Go Plus: Refresh Test Tree` 重新生成测试树。
+- 用户可以通过命令面板执行 `Go Bench: Refresh Test Tree` 重新生成测试树。
 - 启用 Testing API 原型后，用户可以通过 Test Explorer refresh 按钮重新扫描整个项目。
-- 未打开的 `_test.go` 文件也能出现在 Go Plus 测试树中。
+- 未打开的 `_test.go` 文件也能出现在 Go Bench 测试树中。
 - Testing API 关闭时，刷新命令给出清晰提示，不产生异常。
 - 完整测试套件通过，并在工作文档中记录结果。
 - 里程碑文档更新当前可进行操作，例如如何启用 Testing API、如何执行项目级刷新、如何排查未显示文件。
@@ -558,7 +558,7 @@ runner 必须生成兼容 Go subtest 选择规则的正则路径：
 ### 里程碑 7：当前文件测试树刷新 CodeLens
 
 - 在 Go `_test.go` 文件顶部添加 CodeLens，允许用户刷新当前文件对应的 Testing API 测试树节点。
-- 添加命令 `goPlus.refreshCurrentFileTestTree`，支持 CodeLens 传入文件路径，也支持命令面板从当前编辑器推断文件。
+- 添加命令 `goBench.refreshCurrentFileTestTree`，支持 CodeLens 传入文件路径，也支持命令面板从当前编辑器推断文件。
 - 当前文件刷新应复用 Testing API 单文件刷新逻辑，并优先使用未保存编辑器内容。
 - Testing API 未启用时，点击 CodeLens 或命令应给出清晰提示，不产生异常。
 - 更新 manifest、CodeLens 目标生成测试、命令常量测试和工作文档。
@@ -566,7 +566,7 @@ runner 必须生成兼容 Go subtest 选择规则的正则路径：
 退出标准：
 
 - 打开 Go `_test.go` 文件后，文件顶部出现 `Refresh Test Tree` CodeLens。
-- 点击该 CodeLens 只刷新当前文件在 `Go Plus Table Tests` 中的节点。
+- 点击该 CodeLens 只刷新当前文件在 `Go Bench Table Tests` 中的节点。
 - 当前文件不是 `_test.go` 或 Testing API 未启用时，用户看到清晰提示。
 - 完整测试套件通过，并在工作文档中记录结果。
 - 里程碑文档更新当前可进行操作，例如如何点击顶部 CodeLens 刷新当前文件测试树。

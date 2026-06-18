@@ -2,17 +2,17 @@
 
 ## 评估结论
 
-建议 v0.1 不默认包含 VSCode Testing API 测试树，继续以 CodeLens 作为主入口。Testing API 原型保留为实验能力，通过 `goPlus.tableTests.testingApi.enabled` 手动开启，用于后续验证测试树 UX、运行状态呈现和与官方 Go 插件的共存策略。
+建议 v0.1 不默认包含 VSCode Testing API 测试树，继续以 CodeLens 作为主入口。Testing API 原型保留为实验能力，通过 `goBench.tableTests.testingApi.enabled` 手动开启，用于后续验证测试树 UX、运行状态呈现和与官方 Go 插件的共存策略。
 
 ## 原型范围
 
-- 使用 `vscode.tests.createTestController` 创建 `Go Plus Table Tests` 测试控制器。
+- 使用 `vscode.tests.createTestController` 创建 `Go Bench Table Tests` 测试控制器。
 - 将 parser 输出的 `TestXxx` 函数映射为测试树根节点。
 - 将可静态解析的 table case 映射为函数节点下的子节点。
 - 复用现有 `GoTestRunTarget` 和 `runGoTestTarget`，运行行为与 CodeLens 保持一致。
 - 支持文档编辑、保存和配置变化后的测试树刷新。
-- 使用 `goPlus.tableTests.testingApi.enabled` 控制开关，默认关闭。
-- 使用 `Go Plus: Refresh Test Tree` 命令或 Test Explorer refresh 按钮重新扫描整个 workspace。
+- 使用 `goBench.tableTests.testingApi.enabled` 控制开关，默认关闭。
+- 使用 `Go Bench: Refresh Test Tree` 命令或 Test Explorer refresh 按钮重新扫描整个 workspace。
 
 ## UX 对比
 
@@ -21,7 +21,7 @@
 | 入口位置 | 贴近源码函数和 table entry | Test Explorer 测试树 |
 | 单 case 可见性 | case 所在源码附近直接显示 | 需要打开测试树层级 |
 | 与官方 Go 插件重叠 | 较低，主要补 table case 入口 | 较高，可能与官方测试树重复 |
-| 运行结果呈现 | `Go Plus` output channel | Test Explorer 状态 + output channel |
+| 运行结果呈现 | `Go Bench` output channel | Test Explorer 状态 + output channel |
 | 当前实现成熟度 | 已作为主路径验证 | 原型可用，缺少 Extension Host e2e |
 | v0.1 风险 | 低 | 中等，需继续验证共存和刷新成本 |
 
@@ -48,7 +48,7 @@
 - 尚未建立 Extension Host 端到端自动化测试，Test Explorer 真实 UI 仍需手动验证。
 - 项目级刷新已支持扫描整个 workspace，但尚未做大项目性能评估和进度提示。
 - 与官方 Go 插件 Testing API 的共存策略还没有真实用户反馈。
-- 失败详情目前只在 Test Explorer 标记失败，并指向 `Go Plus` output channel 查看原始 Go 输出。
+- 失败详情目前只在 Test Explorer 标记失败，并指向 `Go Bench` output channel 查看原始 Go 输出。
 - nested subtests 仍未建模，当前 table case 只支持 parser 已识别的一层 subtest path。
 
 ## 最终建议

@@ -5,8 +5,8 @@
 - 为 Go 测试文件 CodeLens provider 增加按文档版本和 parser 配置签名缓存的解析结果。
 - 增加 CodeLens 刷新 debounce，文档编辑时合并高频刷新请求。
 - 在保存 Go 测试文件、修改相关配置时主动失效缓存并刷新 CodeLens。
-- 在 parser 返回诊断时写入 `Go Plus` output channel，保持编辑器里静默但给维护者留排查线索。
-- 强化 `goPlus.runTest` 命令参数校验，避免从命令面板误触发时出现不清晰异常。
+- 在 parser 返回诊断时写入 `Go Bench` output channel，保持编辑器里静默但给维护者留排查线索。
+- 强化 `goBench.runTest` 命令参数校验，避免从命令面板误触发时出现不清晰异常。
 - 修复 `go test -run` 对 subtest 名称中字面量 `/` 和空白字符的处理，按 Go testing 的真实匹配名展开 pattern 段。
 - 新增不支持模式 fixture，覆盖 helper 返回 table、变量驱动名称、循环内名称别名和动态 map key。
 - 更新 parser、runner、CodeLens cache 相关测试，完整测试套件通过。
@@ -56,8 +56,8 @@
 - 点击 `Run Case`：运行静态可解析的单个 table case，包含空格和 `/` 的名称会生成类似 `^url_path_$/^api$/^v1$` 的 pattern。
 - 编辑测试文件：插件会清理对应文件缓存，并在 400ms debounce 后刷新 CodeLens。
 - 保存测试文件：插件会失效该文件缓存并刷新 CodeLens。
-- 修改配置：`goPlus.tableTests.enabled`、`nameFields`、`showFunctionRun`、`showCaseRun` 变化后会清空缓存并刷新入口。
-- 查看诊断：当 Go 源码未完成或 parser 返回诊断时，可以在 `Go Plus` output channel 看到文件、位置和诊断信息；编辑器内不会弹窗。
+- 修改配置：`goBench.tableTests.enabled`、`nameFields`、`showFunctionRun`、`showCaseRun` 变化后会清空缓存并刷新入口。
+- 查看诊断：当 Go 源码未完成或 parser 返回诊断时，可以在 `Go Bench` output channel 看到文件、位置和诊断信息；编辑器内不会弹窗。
 - 安全忽略不支持模式：helper 返回 table、动态名称和无法静态回溯的名称不会显示 `Run Case`。
 
 ## 当前可进行操作
@@ -95,13 +95,13 @@
 - 用途：手动验证 CodeLens、缓存刷新和运行命令。
 - 入口：在 VSCode 打开本仓库，运行 `npm run compile` 后按 `F5`。
 - 预期结果：打开 Go `_test.go` 文件后，测试函数位置出现 `Run Test`，可解析 table entry 位置出现 `Run Case`。
-- 失败优先检查：Extension Host 是否加载本仓库、文件是否以 `_test.go` 结尾、`goPlus.tableTests.enabled` 是否为 `true`。
+- 失败优先检查：Extension Host 是否加载本仓库、文件是否以 `_test.go` 结尾、`goBench.tableTests.enabled` 是否为 `true`。
 
 ### 手动验证复杂 case 名称
 
 - 用途：确认包含 `/`、`[]`、空格和正则字符的 case 可以精确运行。
 - 入口：在 Extension Development Host 中打开包含类似 `url path /api/v1 [ok]` case 的 Go 测试文件，点击 `Run Case`。
-- 预期结果：`Go Plus` output channel 展示的 `-run` pattern 会把空白改为 `_`，并把 `/api/v1` 展开为 `/^api$/^v1...$` 这样的 Go test 路径段，Go 只运行目标 case。
+- 预期结果：`Go Bench` output channel 展示的 `-run` pattern 会把空白改为 `_`，并把 `/api/v1` 展开为 `/^api$/^v1...$` 这样的 Go test 路径段，Go 只运行目标 case。
 - 失败优先检查：Go 版本、测试函数是否实际使用 `t.Run(tt.name, ...)`，case 是否属于静态可解析模式。
 
 ### 手动验证不支持模式
@@ -109,7 +109,7 @@
 - 用途：确认安全跳过策略不会产生误导性入口。
 - 入口：使用 `test/fixtures/parser/unsupported_patterns_test.go` 中的模式创建或打开测试文件。
 - 预期结果：函数级 `Run Test` 可显示，但 helper 返回 table、变量名称、别名名称和动态 map key 不显示 `Run Case`。
-- 失败优先检查：fixture 是否被改成静态字面量、`goPlus.tableTests.showCaseRun` 是否开启、output channel 是否有 parser 诊断。
+- 失败优先检查：fixture 是否被改成静态字面量、`goBench.tableTests.showCaseRun` 是否开启、output channel 是否有 parser 诊断。
 
 ## 测试记录
 

@@ -81,5 +81,5 @@ export function createGoTestTreeNodes(
 
 /** 构造 Testing API 节点稳定 ID。 */
 export function createGoTestTreeNodeId(file: string, testName: string, subtestPath: readonly string[] = []): string {
-  return ['go-plus', file, testName, ...subtestPath].map(encodeURIComponent).join('/');
+  return ['go-bench', file, testName, ...subtestPath].map(encodeURIComponent).join('/');
 }

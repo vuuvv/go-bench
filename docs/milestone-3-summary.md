@@ -5,20 +5,20 @@
 - 添加 Go `_test.go` 文件 CodeLens provider。
 - 在测试函数名位置展示函数级 `Run Test` 入口。
 - 在已解析 table entry 位置展示 case 级 `Run Case` 入口。
-- 新增 `goPlus.runTest` 命令，点击 CodeLens 后执行标准 `go test -run`。
+- 新增 `goBench.runTest` 命令，点击 CodeLens 后执行标准 `go test -run`。
 - 实现 runner 纯函数：正则字面量转义、Go subtest path 构造、workspace 内 package 参数解析、shell 展示命令构造。
 - 使用 VSCode output channel 展示触发目标、实际命令和 `go test` 原始 stdout/stderr。
-- 接入 `goPlus.tableTests.enabled`、`nameFields`、`showFunctionRun`、`showCaseRun` 配置。
+- 接入 `goBench.tableTests.enabled`、`nameFields`、`showFunctionRun`、`showCaseRun` 配置。
 - 为 CodeLens 目标生成、runner 命令构造和配置归一化补充自动化测试。
 
 ## 核心文件和模块
 
-- `src/extension.ts`：注册 output channel、`goPlus.runTest` 命令和 Go 测试文件 CodeLens provider。
+- `src/extension.ts`：注册 output channel、`goBench.runTest` 命令和 Go 测试文件 CodeLens provider。
 - `src/codelens.ts`：把 parser 结果转换为 VSCode `CodeLens`，并处理解析失败时的静默降级。
 - `src/codelensTargets.ts`：不依赖 VSCode API 的 CodeLens 目标生成纯函数，便于单元测试覆盖入口参数。
 - `src/runner.ts`：构造和执行 `go test <package> -run <pattern>`，保留 Go 原始输出。
 - `src/tableTestConfig.ts`：归一化 VSCode 用户配置，保护配置类型错误和空字段列表。
-- `src/constants.ts`、`package.json`：新增 `goPlus.runTest` 命令 ID 和 manifest 贡献。
+- `src/constants.ts`、`package.json`：新增 `goBench.runTest` 命令 ID 和 manifest 贡献。
 - `test/runner.test.ts`：覆盖空格、斜杠、标点、正则特殊字符、package 路径和 shell 命令展示。
 - `test/codelensTargets.test.ts`：覆盖函数级和 case 级 CodeLens 目标生成及显示开关。
 - `test/tableTestConfig.test.ts`：覆盖配置默认值、用户值和异常值兜底。
@@ -44,19 +44,19 @@
 | 名称中的空格和标点 | 已支持 |
 | 名称中的正则特殊字符 | 已按字面量转义 |
 | 名称中的 `/` | 保留 Go subtest 路径语义 |
-| `go test` 输出查看 | 输出到 `Go Plus` output channel |
+| `go test` 输出查看 | 输出到 `Go Bench` output channel |
 | 动态或不支持 case | 沿用里程碑 2 策略，不生成 case 入口 |
 
 ## 当前插件内可进行的操作
 
 - 打开 Go 测试文件：在 Extension Development Host 中打开任意 `_test.go` 文件，插件会尝试识别普通 `func TestXxx(t *testing.T)`。
-- 查看函数级运行入口：当 `goPlus.tableTests.showFunctionRun` 为 `true` 时，可以在测试函数名附近看到 `Run Test` CodeLens。
+- 查看函数级运行入口：当 `goBench.tableTests.showFunctionRun` 为 `true` 时，可以在测试函数名附近看到 `Run Test` CodeLens。
 - 运行整个测试函数：点击 `Run Test` 后，插件会在当前 workspace root 下执行类似 `go test ./pkg -run '^TestName$'` 的命令。
 - 查看 table case 运行入口：对里程碑 2 已支持的静态 table-driven case，可以在 table entry 附近看到 `Run Case` CodeLens。
 - 运行单个 table case：点击 `Run Case` 后，插件会执行类似 `go test ./pkg -run '^TestName$/^case name$'` 的命令，只选择对应 subtest path。
-- 查看运行输出：每次运行会打开或写入 `Go Plus` output channel，显示目标名称、可复现命令和 Go 工具链原始输出。
-- 控制入口显示：可以通过 `goPlus.tableTests.enabled` 总开关启用或禁用识别，通过 `showFunctionRun` 和 `showCaseRun` 分别控制函数级与 case 级 CodeLens。
-- 扩展可识别名称字段：可以修改 `goPlus.tableTests.nameFields`，让 parser 把 `name`、`desc`、`caseName`、`title` 之外的静态字符串字段也视作 case 名称。
+- 查看运行输出：每次运行会打开或写入 `Go Bench` output channel，显示目标名称、可复现命令和 Go 工具链原始输出。
+- 控制入口显示：可以通过 `goBench.tableTests.enabled` 总开关启用或禁用识别，通过 `showFunctionRun` 和 `showCaseRun` 分别控制函数级与 case 级 CodeLens。
+- 扩展可识别名称字段：可以修改 `goBench.tableTests.nameFields`，让 parser 把 `name`、`desc`、`caseName`、`title` 之外的静态字符串字段也视作 case 名称。
 - 安全忽略不支持 case：动态拼接、helper 生成名称或无法静态回溯的 case 不会显示 `Run Case`，避免点击后运行错误目标。
 
 ## 明确不支持或未完成
@@ -115,13 +115,13 @@
 
 - 用途：确认点击入口后只运行目标函数或目标 case。
 - 入口：在 Extension Development Host 中打开包含 table-driven tests 的 Go 项目，点击 `Run Test` 或 `Run Case`。
-- 预期结果：`Go Plus` output channel 显示类似 `go test ./pkg -run '^TestName$/^case name$'` 的命令，并保留 Go 原始输出。
+- 预期结果：`Go Bench` output channel 显示类似 `go test ./pkg -run '^TestName$/^case name$'` 的命令，并保留 Go 原始输出。
 - 失败优先检查：本机 `go` 是否在 PATH 中、测试文件是否位于当前 workspace 内、case 是否属于里程碑 2 已支持的静态模式。
 
 ### 调整显示配置
 
 - 用途：验证 CodeLens 显示开关和名称字段配置。
-- 入口：在 VSCode settings 中修改 `goPlus.tableTests.enabled`、`goPlus.tableTests.nameFields`、`goPlus.tableTests.showFunctionRun` 或 `goPlus.tableTests.showCaseRun`。
+- 入口：在 VSCode settings 中修改 `goBench.tableTests.enabled`、`goBench.tableTests.nameFields`、`goBench.tableTests.showFunctionRun` 或 `goBench.tableTests.showCaseRun`。
 - 预期结果：刷新或重新打开 `_test.go` 文件后，CodeLens 根据配置显示或隐藏。
 - 失败优先检查：配置值类型是否正确、字段名是否为空字符串、当前 case 是否使用静态字符串字段。
 

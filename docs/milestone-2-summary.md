@@ -14,7 +14,7 @@
 ## 核心文件和模块
 
 - `src/parser/types.ts`：新增 `TableTestCaseMetadata`、`TableTestCaseConfidence`，并将 `tableCases` 挂到测试函数元数据下。
-- `src/parser/goHelperParser.ts`：把 `nameFields` 传给 Go helper，默认值来自 `goPlus.tableTests.nameFields` 的项目默认配置。
+- `src/parser/goHelperParser.ts`：把 `nameFields` 传给 Go helper，默认值来自 `goBench.tableTests.nameFields` 的项目默认配置。
 - `src/parser/helperSource.ts`：实现 table detector 和 locator，包括 table literal 解析、range 绑定、`t.Run` 名称表达式回溯和 source range 生成。
 - `src/parser/index.ts`：导出新增 table case 类型。
 - `test/parser.test.ts`：新增 table case detector/locator 单元测试。
@@ -63,4 +63,4 @@
 - 已知问题：`confidence` 类型预留了 `probable`，但本阶段只返回 `exact`；不支持场景直接跳过。
 - 后续计划：里程碑 3 接入 CodeLens provider，消费 `tableCases` 并显示 `Run Case`。
 - 后续计划：实现 runner 后为 `subtestPath` 构造 `go test -run` 正则路径，并补充特殊字符转义测试。
-- 后续计划：接入 VSCode 配置读取，让用户修改 `goPlus.tableTests.nameFields` 后能影响 helper 识别结果。
+- 后续计划：接入 VSCode 配置读取，让用户修改 `goBench.tableTests.nameFields` 后能影响 helper 识别结果。

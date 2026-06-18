@@ -5,8 +5,8 @@
 - 初始化 VSCode extension 项目骨架。
 - 添加 TypeScript build、ESLint lint 和 Node test 配置。
 - 注册 Go 语言、工作区 Go 测试文件和 no-op command 相关 activation events。
-- 新增 `Go Plus` output channel。
-- 注册 `goPlus.noop` 命令，用于验证扩展激活与命令注册。
+- 新增 `Go Bench` output channel。
+- 注册 `goBench.noop` 命令，用于验证扩展激活与命令注册。
 - 建立代码注释规范和工作文档模板。
 
 ## 核心文件和模块
@@ -29,8 +29,8 @@
 
 ## 已支持和不支持的模式
 
-- 已支持：扩展可被 Go 语言文件、工作区 `_test.go` 文件或 `goPlus.noop` 命令激活。
-- 已支持：执行 no-op command 时向 `Go Plus` output channel 写入日志，并显示轻量提示。
+- 已支持：扩展可被 Go 语言文件、工作区 `_test.go` 文件或 `goBench.noop` 命令激活。
+- 已支持：执行 no-op command 时向 `Go Bench` output channel 写入日志，并显示轻量提示。
 - 暂不支持：Go parser、table-driven test 检测、CodeLens、`go test` runner 和 VSCode Testing API。
 
 ## 测试记录
@@ -44,7 +44,7 @@
 - 命令：`npm test`
   - 结果：通过，Node test 运行 7 个断言，全部通过。
 
-未覆盖风险：当前自动化测试只覆盖骨架常量和基础配置，尚未启动真实 VSCode Extension Development Host。no-op command 已在 manifest 和 `src/extension.ts` 中注册，可通过 `.vscode/launch.json` 启动 Extension Development Host 后执行 `Go Plus: No-op` 手动验证。
+未覆盖风险：当前自动化测试只覆盖骨架常量和基础配置，尚未启动真实 VSCode Extension Development Host。no-op command 已在 manifest 和 `src/extension.ts` 中注册，可通过 `.vscode/launch.json` 启动 Extension Development Host 后执行 `Go Bench: No-op` 手动验证。
 
 ## 已知问题和后续计划
 

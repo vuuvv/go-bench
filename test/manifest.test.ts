@@ -31,10 +31,10 @@ describe('VSCode extension manifest', () => {
     assert.deepEqual(manifest.activationEvents, [
       'onLanguage:go',
       'workspaceContains:**/*_test.go',
-      'onCommand:goPlus.noop',
-      'onCommand:goPlus.runTest',
-      'onCommand:goPlus.refreshTestTree',
-      'onCommand:goPlus.refreshCurrentFileTestTree'
+      'onCommand:goBench.noop',
+      'onCommand:goBench.runTest',
+      'onCommand:goBench.refreshTestTree',
+      'onCommand:goBench.refreshCurrentFileTestTree'
     ]);
   });
 
@@ -42,19 +42,19 @@ describe('VSCode extension manifest', () => {
     assert.deepEqual(manifest.contributes.commands, [
       {
         command: commands.noop,
-        title: 'Go Plus: No-op'
+        title: 'Go Bench: No-op'
       },
       {
         command: commands.runTest,
-        title: 'Go Plus: Run Test'
+        title: 'Go Bench: Run Test'
       },
       {
         command: commands.refreshTestTree,
-        title: 'Go Plus: Refresh Test Tree'
+        title: 'Go Bench: Refresh Test Tree'
       },
       {
         command: commands.refreshCurrentFileTestTree,
-        title: 'Go Plus: Refresh Current File Test Tree'
+        title: 'Go Bench: Refresh Current File Test Tree'
       }
     ]);
   });

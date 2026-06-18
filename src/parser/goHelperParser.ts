@@ -78,7 +78,7 @@ async function ensureHelperFile(): Promise<string> {
 
 async function writeHelperFile(): Promise<string> {
   const hash = createHash('sha256').update(goParserHelperSource).digest('hex').slice(0, 12);
-  const dir = join(tmpdir(), 'go-plus-parser');
+  const dir = join(tmpdir(), 'go-bench-parser');
   const file = join(dir, `parser-helper-${hash}.go`);
 
   // helper 源码按内容 hash 命名；重复解析会复用同一个文件，减少临时目录写入和 `go run` 缓存抖动。

@@ -9,14 +9,14 @@ import { commands, configurationKeys, defaultTableTestConfig, outputChannelName 
 
 describe('extension skeleton constants', () => {
   it('uses the contributed no-op command id', () => {
-    assert.equal(commands.noop, 'goPlus.noop');
-    assert.equal(commands.runTest, 'goPlus.runTest');
-    assert.equal(commands.refreshTestTree, 'goPlus.refreshTestTree');
-    assert.equal(commands.refreshCurrentFileTestTree, 'goPlus.refreshCurrentFileTestTree');
+    assert.equal(commands.noop, 'goBench.noop');
+    assert.equal(commands.runTest, 'goBench.runTest');
+    assert.equal(commands.refreshTestTree, 'goBench.refreshTestTree');
+    assert.equal(commands.refreshCurrentFileTestTree, 'goBench.refreshCurrentFileTestTree');
   });
 
   it('uses a stable output channel name', () => {
-    assert.equal(outputChannelName, 'Go Plus');
+    assert.equal(outputChannelName, 'Go Bench');
   });
 
   it('keeps table test defaults aligned with milestone 0 requirements', () => {
@@ -29,13 +29,13 @@ describe('extension skeleton constants', () => {
     });
   });
 
-  it('defines configuration keys under the goPlus.tableTests namespace', () => {
+  it('defines configuration keys under the goBench.tableTests namespace', () => {
     assert.deepEqual(Object.values(configurationKeys), [
-      'goPlus.tableTests.enabled',
-      'goPlus.tableTests.nameFields',
-      'goPlus.tableTests.showFunctionRun',
-      'goPlus.tableTests.showCaseRun',
-      'goPlus.tableTests.testingApi.enabled'
+      'goBench.tableTests.enabled',
+      'goBench.tableTests.nameFields',
+      'goBench.tableTests.showFunctionRun',
+      'goBench.tableTests.showCaseRun',
+      'goBench.tableTests.testingApi.enabled'
     ]);
   });
 });

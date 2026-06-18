@@ -1,13 +1,13 @@
 {
-  "name": "go-plus",
-  "displayName": "Go Plus",
+  "name": "go-bench",
+  "displayName": "Go Bench",
   "description": "VSCode extension skeleton for table-driven Go test run entries.",
   "version": "0.0.1",
   "publisher": "vuuvv",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vuuvv/go-plus.git"
+    "url": "https://github.com/vuuvv/go-bench.git"
   },
   "engines": {
     "vscode": "^1.90.0"
@@ -17,41 +17,37 @@
   ],
   "activationEvents": [
     "onLanguage:go",
-    "workspaceContains:**/*_test.go",
-    "onCommand:goPlus.noop",
-    "onCommand:goPlus.runTest",
-    "onCommand:goPlus.refreshTestTree",
-    "onCommand:goPlus.refreshCurrentFileTestTree"
+    "workspaceContains:**/*_test.go"
   ],
   "main": "./out/src/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "goPlus.noop",
-        "title": "Go Plus: No-op"
+        "command": "goBench.noop",
+        "title": "Go Bench: No-op"
       },
       {
-        "command": "goPlus.runTest",
-        "title": "Go Plus: Run Test"
+        "command": "goBench.runTest",
+        "title": "Go Bench: Run Test"
       },
       {
-        "command": "goPlus.refreshTestTree",
-        "title": "Go Plus: Refresh Test Tree"
+        "command": "goBench.refreshTestTree",
+        "title": "Go Bench: Refresh Test Tree"
       },
       {
-        "command": "goPlus.refreshCurrentFileTestTree",
-        "title": "Go Plus: Refresh Current File Test Tree"
+        "command": "goBench.refreshCurrentFileTestTree",
+        "title": "Go Bench: Refresh Current File Test Tree"
       }
     ],
     "configuration": {
-      "title": "Go Plus",
+      "title": "Go Bench",
       "properties": {
-        "goPlus.tableTests.enabled": {
+        "goBench.tableTests.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Enable table-driven test discovery for Go test files."
         },
-        "goPlus.tableTests.nameFields": {
+        "goBench.tableTests.nameFields": {
           "type": "array",
           "default": [
             "name",
@@ -64,20 +60,20 @@
           },
           "description": "Struct fields that can provide stable table-driven subtest names."
         },
-        "goPlus.tableTests.showFunctionRun": {
+        "goBench.tableTests.showFunctionRun": {
           "type": "boolean",
           "default": true,
           "description": "Show run entries for whole Go test functions."
         },
-        "goPlus.tableTests.showCaseRun": {
+        "goBench.tableTests.showCaseRun": {
           "type": "boolean",
           "default": true,
           "description": "Show run entries for resolvable table-driven test cases."
         },
-        "goPlus.tableTests.testingApi.enabled": {
+        "goBench.tableTests.testingApi.enabled": {
           "type": "boolean",
           "default": false,
-          "description": "Enable the experimental VSCode Testing API tree for Go Plus table-driven tests."
+          "description": "Enable the experimental VSCode Testing API tree for Go Bench table-driven tests."
         }
       }
     }

@@ -104,7 +104,7 @@ export class GoTestCodeLensProvider implements vscode.CodeLensProvider, vscode.D
         });
       });
     } catch (error) {
-      this.output?.appendLine(`Go Plus CodeLens parse failed for ${file}: ${String(error)}`);
+      this.output?.appendLine(`Go Bench CodeLens parse failed for ${file}: ${String(error)}`);
       return [];
     }
   }
@@ -145,7 +145,7 @@ export class GoTestCodeLensProvider implements vscode.CodeLensProvider, vscode.D
         typeof diagnostic.line === 'number'
           ? `:${diagnostic.line + 1}:${(diagnostic.character ?? 0) + 1}`
           : '';
-      this.output?.appendLine(`Go Plus parser diagnostic ${file}${position}: ${diagnostic.message}`);
+      this.output?.appendLine(`Go Bench parser diagnostic ${file}${position}: ${diagnostic.message}`);
     }
   }
 }

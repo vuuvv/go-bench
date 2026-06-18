@@ -2,7 +2,7 @@
 
 ## 完成功能范围
 
-- 新增命令 `goPlus.refreshTestTree`，在命令面板显示为 `Go Plus: Refresh Test Tree`。
+- 新增命令 `goBench.refreshTestTree`，在命令面板显示为 `Go Bench: Refresh Test Tree`。
 - 将命令注册到 `package.json` 的 activation events 和 contributes commands。
 - 为实验 Testing API 原型增加 workspace 级扫描刷新能力。
 - 将同一刷新能力接入 VSCode Test Explorer 的 refresh 按钮。
@@ -15,8 +15,8 @@
 ## 核心文件和模块
 
 - `src/constants.ts`：新增 `commands.refreshTestTree`。
-- `package.json`：新增 `onCommand:goPlus.refreshTestTree` activation event 和命令贡献。
-- `src/extension.ts`：注册 `Go Plus: Refresh Test Tree` 命令，并调用 Testing API manager 扫描 workspace。
+- `package.json`：新增 `onCommand:goBench.refreshTestTree` activation event 和命令贡献。
+- `src/extension.ts`：注册 `Go Bench: Refresh Test Tree` 命令，并调用 Testing API manager 扫描 workspace。
 - `src/testing.ts`：新增 `refreshWorkspace`、Test Explorer `refreshHandler`、全量清树和 workspace 文档读取逻辑。
 - `test/constants.test.ts`：覆盖新命令 ID。
 - `test/manifest.test.ts`：覆盖 activation event 和命令贡献。
@@ -25,7 +25,7 @@
 ## 实现思路与设计取舍
 
 - 项目级刷新只服务实验 Testing API 树，不影响 CodeLens。CodeLens 仍按打开文档和编辑事件即时刷新。
-- 命令始终可见，但只有 `goPlus.tableTests.testingApi.enabled` 为 `true` 时才真正扫描；关闭时提示用户开启实验树。
+- 命令始终可见，但只有 `goBench.tableTests.testingApi.enabled` 为 `true` 时才真正扫描；关闭时提示用户开启实验树。
 - Test Explorer refresh 按钮和命令面板命令复用同一个 `refreshWorkspace`，避免两套刷新行为不一致。
 - 全量刷新先清空当前树再逐文件重建，逻辑简单，能准确处理文件删除、重命名和配置变化。
 - 扫描使用 `vscode.workspace.findFiles('**/*_test.go', '**/{.git,node_modules,out}/**')`，避免把依赖、构建产物和 Git 元数据纳入树。
@@ -33,13 +33,13 @@
 
 ## 当前插件内可进行的操作
 
-- 启用实验测试树：设置 `goPlus.tableTests.testingApi.enabled` 为 `true`。
-- 通过命令面板刷新：执行 `Go Plus: Refresh Test Tree`，插件会扫描整个 workspace 的 `_test.go` 文件并重建 Go Plus 测试树。
-- 通过 Test Explorer 刷新：在 Test Explorer 中点击 refresh，`Go Plus Table Tests` controller 会执行同样的全项目扫描。
-- 查看刷新日志：`Go Plus` output channel 会显示扫描到的 Go 测试文件数量和实际刷新数量。
+- 启用实验测试树：设置 `goBench.tableTests.testingApi.enabled` 为 `true`。
+- 通过命令面板刷新：执行 `Go Bench: Refresh Test Tree`，插件会扫描整个 workspace 的 `_test.go` 文件并重建 Go Bench 测试树。
+- 通过 Test Explorer 刷新：在 Test Explorer 中点击 refresh，`Go Bench Table Tests` controller 会执行同样的全项目扫描。
+- 查看刷新日志：`Go Bench` output channel 会显示扫描到的 Go 测试文件数量和实际刷新数量。
 - 运行刷新后的节点：函数节点和 table case 子节点继续复用现有 `go test -run` runner。
 - 点击定位：测试树节点仍携带 `uri` 和 `range`，点击 case 节点会定位到已识别 table entry。
-- 未启用 Testing API 时刷新：命令会提示开启 `goPlus.tableTests.testingApi.enabled`，不会报错。
+- 未启用 Testing API 时刷新：命令会提示开启 `goBench.tableTests.testingApi.enabled`，不会报错。
 
 ## 当前可进行操作
 
@@ -66,17 +66,17 @@
 
 ### 手动刷新整个项目测试树
 
-- 用途：确认未打开的 Go `_test.go` 文件也会进入 Go Plus 测试树。
-- 入口：启用 `goPlus.tableTests.testingApi.enabled` 后，在命令面板执行 `Go Plus: Refresh Test Tree`。
-- 预期结果：Test Explorer 中的 `Go Plus Table Tests` 被重新生成，`Go Plus` output channel 显示扫描和刷新数量。
+- 用途：确认未打开的 Go `_test.go` 文件也会进入 Go Bench 测试树。
+- 入口：启用 `goBench.tableTests.testingApi.enabled` 后，在命令面板执行 `Go Bench: Refresh Test Tree`。
+- 预期结果：Test Explorer 中的 `Go Bench Table Tests` 被重新生成，`Go Bench` output channel 显示扫描和刷新数量。
 - 失败优先检查：workspace 是否打开在 Go 项目根目录、Testing API 是否启用、文件是否以 `_test.go` 结尾、output channel 是否有 parser 诊断。
 
 ### 使用 Test Explorer 刷新按钮
 
-- 用途：用 VSCode 原生测试刷新交互重建 Go Plus 测试树。
+- 用途：用 VSCode 原生测试刷新交互重建 Go Bench 测试树。
 - 入口：启用实验树并打开 Test Explorer，点击刷新按钮。
 - 预期结果：执行与命令面板相同的 workspace 扫描刷新。
-- 失败优先检查：Test Explorer 中是否存在 `Go Plus Table Tests` controller、实验开关是否为 `true`。
+- 失败优先检查：Test Explorer 中是否存在 `Go Bench Table Tests` controller、实验开关是否为 `true`。
 
 ## 测试记录
 

@@ -1,6 +1,6 @@
-# Go Plus
+# Go Bench
 
-Go Plus is a VSCode extension that improves Go table-driven test workflows.
+Go Bench is a VSCode extension that improves Go table-driven test workflows.
 It adds editor run entries for whole Go test functions and resolvable table
 test cases, so you can run a single case without rewriting code or manually
 assembling `go test -run` patterns.
@@ -10,7 +10,7 @@ assembling `go test -run` patterns.
 - Shows `Run Test` CodeLens entries for Go `TestXxx` functions.
 - Shows `Run Case` CodeLens entries for table-driven cases with stable names.
 - Builds standard `go test <package> -run <pattern>` commands and preserves the
-  original `go test` output in the Go Plus output channel.
+  original `go test` output in the Go Bench output channel.
 - Escapes regular expression characters in test and subtest names before running
   a targeted test.
 - Supports configurable table case name fields, including `name`, `desc`,
@@ -19,7 +19,7 @@ assembling `go test -run` patterns.
 - Adds a `Refresh Test Tree` CodeLens at the top of Go test files to refresh the
   current file in Test Explorer when the experimental tree is enabled.
 
-Go Plus is designed to complement the official Go extension, not replace it.
+Go Bench is designed to complement the official Go extension, not replace it.
 
 ## Requirements
 
@@ -29,7 +29,7 @@ Go Plus is designed to complement the official Go extension, not replace it.
 
 ## Supported Test Pattern
 
-Go Plus focuses on common local table-driven tests:
+Go Bench focuses on common local table-driven tests:
 
 ```go
 func TestNormalize(t *testing.T) {
@@ -50,26 +50,26 @@ func TestNormalize(t *testing.T) {
 }
 ```
 
-When a case name can be resolved safely, Go Plus shows a case-level run entry.
+When a case name can be resolved safely, Go Bench shows a case-level run entry.
 Dynamic names, helper-generated tables, and runtime-only data are intentionally
 ignored instead of producing unreliable run buttons.
 
 ## Commands
 
-- `Go Plus: Run Test`
-- `Go Plus: Refresh Test Tree`
-- `Go Plus: Refresh Current File Test Tree`
-- `Go Plus: No-op`
+- `Go Bench: Run Test`
+- `Go Bench: Refresh Test Tree`
+- `Go Bench: Refresh Current File Test Tree`
+- `Go Bench: No-op`
 
 ## Configuration
 
 ```json
 {
-  "goPlus.tableTests.enabled": true,
-  "goPlus.tableTests.nameFields": ["name", "desc", "caseName", "title"],
-  "goPlus.tableTests.showFunctionRun": true,
-  "goPlus.tableTests.showCaseRun": true,
-  "goPlus.tableTests.testingApi.enabled": false
+  "goBench.tableTests.enabled": true,
+  "goBench.tableTests.nameFields": ["name", "desc", "caseName", "title"],
+  "goBench.tableTests.showFunctionRun": true,
+  "goBench.tableTests.showCaseRun": true,
+  "goBench.tableTests.testingApi.enabled": false
 }
 ```
 
@@ -82,11 +82,11 @@ npm run lint
 npm test
 ```
 
-Use the `Run Go Plus Extension` launch configuration to start an Extension Development Host.
+Use the `Run Go Bench Extension` launch configuration to start an Extension Development Host.
 
 ## Repository
 
-https://github.com/vuuvv/go-plus
+https://github.com/vuuvv/go-bench
 
 ## License
 

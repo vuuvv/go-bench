@@ -15,13 +15,13 @@ import { runGoTestTarget, type GoTestRunTarget } from './runner';
 import { createGoTestTreeNodes, type GoTestTreeNode } from './testingTargets';
 import type { TableTestConfig } from './tableTestConfig';
 
-const controllerId = 'go-plus.tableTests';
-const controllerLabel = 'Go Plus Table Tests';
+const controllerId = 'go-bench.tableTests';
+const controllerLabel = 'Go Bench Table Tests';
 const goTestFilePattern = '**/*_test.go';
 const ignoredTestFilePattern = '**/{.git,node_modules,out}/**';
 
 /** Testing API 原型依赖项，测试或后续集成可以替换 parser/config。 */
-export type GoPlusTestingApiPrototypeOptions = {
+export type GoBenchTestingApiPrototypeOptions = {
   /** VSCode output channel，用于复用 runner 输出和记录 parser 诊断。 */
   output: vscode.OutputChannel;
   /** Go 测试文件 parser，默认使用 Go helper。 */
@@ -38,18 +38,18 @@ type RegisteredTestItem = {
 /**
  * 管理实验性 `TestController` 的生命周期。
  *
- * 开关关闭时不创建 controller，避免 Test Explorer 出现空的 Go Plus 树；开关打开后会刷新当前已打开
+ * 开关关闭时不创建 controller，避免 Test Explorer 出现空的 Go Bench 树；开关打开后会刷新当前已打开
  * 的 Go 测试文件，并在后续文档事件中增量更新。
  */
-export class GoPlusTestingApiPrototypeManager implements vscode.Disposable {
-  private prototype: GoPlusTestingApiPrototype | undefined;
+export class GoBenchTestingApiPrototypeManager implements vscode.Disposable {
+  private prototype: GoBenchTestingApiPrototype | undefined;
 
-  public constructor(private readonly options: GoPlusTestingApiPrototypeOptions) {}
+  public constructor(private readonly options: GoBenchTestingApiPrototypeOptions) {}
 
   /** 按配置启用或停用 Testing API 原型。 */
   public setEnabled(enabled: boolean): void {
     if (enabled && !this.prototype) {
-      this.prototype = new GoPlusTestingApiPrototype(this.options);
+      this.prototype = new GoBenchTestingApiPrototype(this.options);
       for (const document of vscode.workspace.textDocuments) {
         this.refreshDocument(document);
       }
@@ -90,7 +90,7 @@ export class GoPlusTestingApiPrototypeManager implements vscode.Disposable {
   }
 }
 
-class GoPlusTestingApiPrototype implements vscode.Disposable {
+class GoBenchTestingApiPrototype implements vscode.Disposable {
   private readonly controller: vscode.TestController;
   private readonly parser: GoTestParser;
   private readonly getConfig: () => TableTestConfig;
@@ -98,7 +98,7 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
   private readonly registeredItems = new Map<string, RegisteredTestItem>();
   private readonly disposables: vscode.Disposable[] = [];
 
-  public constructor(options: GoPlusTestingApiPrototypeOptions) {
+  public constructor(options: GoBenchTestingApiPrototypeOptions) {
     this.output = options.output;
     this.parser = options.parser ?? new GoHelperParser();
     this.getConfig = options.getConfig ?? readTableTestConfigFromWorkspace;
@@ -138,7 +138,7 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
       this.outputDiagnostics(file, parseResult);
       this.replaceFileItems(document.uri, file, createGoTestTreeNodes(parseResult, config));
     } catch (error) {
-      this.output.appendLine(`Go Plus Testing API parse failed for ${file}: ${String(error)}`);
+      this.output.appendLine(`Go Bench Testing API parse failed for ${file}: ${String(error)}`);
       this.removeFileItems(file);
     }
   }
@@ -151,7 +151,7 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
 
     const document = await openWorkspaceDocument(vscode.Uri.file(file));
     await this.refreshDocument(document);
-    this.output.appendLine(`Go Plus Testing API refresh: refreshed current file ${file}.`);
+    this.output.appendLine(`Go Bench Testing API refresh: refreshed current file ${file}.`);
     return true;
   }
 
@@ -169,7 +169,7 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
     }
 
     const uris = await vscode.workspace.findFiles(goTestFilePattern, ignoredTestFilePattern);
-    this.output.appendLine(`Go Plus Testing API refresh: scanning ${uris.length} Go test file(s).`);
+    this.output.appendLine(`Go Bench Testing API refresh: scanning ${uris.length} Go test file(s).`);
     this.clearAllItems();
 
     let refreshed = 0;
@@ -182,7 +182,7 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
       refreshed++;
     }
 
-    this.output.appendLine(`Go Plus Testing API refresh: refreshed ${refreshed} Go test file(s).`);
+    this.output.appendLine(`Go Bench Testing API refresh: refreshed ${refreshed} Go test file(s).`);
     return refreshed;
   }
 
@@ -213,7 +213,7 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
   }
 
   private removeFileItems(file: string): void {
-    const prefix = `${encodeURIComponent('go-plus')}/${encodeURIComponent(file)}/`;
+    const prefix = `${encodeURIComponent('go-bench')}/${encodeURIComponent(file)}/`;
     for (const [id, registered] of [...this.registeredItems]) {
       if (!id.startsWith(prefix)) {
         continue;
@@ -249,7 +249,7 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
       run.started(registered.item);
       const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(registered.target.file));
       if (!workspaceFolder) {
-        const message = new vscode.TestMessage('Go Plus: cannot determine workspace folder for this Go test file.');
+        const message = new vscode.TestMessage('Go Bench: cannot determine workspace folder for this Go test file.');
         run.failed(registered.item, message);
         continue;
       }
@@ -264,13 +264,13 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
         } else {
           run.failed(
             registered.item,
-            new vscode.TestMessage(`go test failed with exit code ${result.code ?? 'unknown'}. See Go Plus output.`)
+            new vscode.TestMessage(`go test failed with exit code ${result.code ?? 'unknown'}. See Go Bench output.`)
           );
         }
       } catch (error) {
         run.failed(
           registered.item,
-          new vscode.TestMessage(`Go Plus: ${error instanceof Error ? error.message : String(error)}`)
+          new vscode.TestMessage(`Go Bench: ${error instanceof Error ? error.message : String(error)}`)
         );
       }
     }
@@ -321,7 +321,7 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
         typeof diagnostic.line === 'number'
           ? `:${diagnostic.line + 1}:${(diagnostic.character ?? 0) + 1}`
           : '';
-      this.output.appendLine(`Go Plus Testing API diagnostic ${file}${position} (${configKey}): ${diagnostic.message}`);
+      this.output.appendLine(`Go Bench Testing API diagnostic ${file}${position} (${configKey}): ${diagnostic.message}`);
     }
   }
 }
