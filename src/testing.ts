@@ -9,6 +9,12 @@
 import * as vscode from 'vscode';
 import { parserConfigCacheKey } from './codelensCache';
 import { readTableTestConfigFromWorkspace } from './codelens';
+import {
+  buildGoTestJsonTestName,
+  GoTestJsonStreamParser,
+  type GoTestJsonEvent,
+  type GoTestJsonStreamRecord
+} from './goTestJson';
 import { GoHelperParser, isGoTestFile } from './parser';
 import type { GoTestFileParseResult, GoTestParser, SourceRange } from './parser';
 import { runGoTestTarget, type GoTestRunTarget } from './runner';
@@ -33,6 +39,11 @@ export type GoBenchTestingApiPrototypeOptions = {
 type RegisteredTestItem = {
   item: vscode.TestItem;
   target: GoTestRunTarget;
+};
+
+type TestRunGroup = {
+  root: RegisteredTestItem;
+  items: RegisteredTestItem[];
 };
 
 /**
@@ -239,55 +250,206 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
 
   private async runTests(request: vscode.TestRunRequest): Promise<void> {
     const run = this.controller.createTestRun(request);
-    const requested = this.collectRequestedItems(request);
+    const groups = this.collectRequestedRunGroups(request);
 
-    for (const registered of requested) {
-      run.enqueued(registered.item);
+    for (const group of groups) {
+      for (const registered of group.items) {
+        run.enqueued(registered.item);
+      }
     }
 
-    for (const registered of requested) {
-      run.started(registered.item);
-      const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(registered.target.file));
+    for (const group of groups) {
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(group.root.target.file));
       if (!workspaceFolder) {
         const message = new vscode.TestMessage('Go Bench: cannot determine workspace folder for this Go test file.');
-        run.failed(registered.item, message);
+        for (const registered of group.items) {
+          this.ensureStarted(run, registered, new Set());
+          run.failed(registered.item, message);
+        }
         continue;
       }
 
       try {
-        const result = await runGoTestTarget(registered.target, {
-          workspaceRoot: workspaceFolder.uri.fsPath,
-          output: this.output
-        });
-        if (result.success) {
-          run.passed(registered.item);
-        } else {
-          run.failed(
-            registered.item,
-            new vscode.TestMessage(`go test failed with exit code ${result.code ?? 'unknown'}. See Go Bench output.`)
-          );
-        }
+        await this.runGroupWithJsonEvents(run, group, workspaceFolder.uri.fsPath);
       } catch (error) {
-        run.failed(
-          registered.item,
-          new vscode.TestMessage(`Go Bench: ${error instanceof Error ? error.message : String(error)}`)
-        );
+        const message = new vscode.TestMessage(`Go Bench: ${error instanceof Error ? error.message : String(error)}`);
+        for (const registered of group.items) {
+          this.ensureStarted(run, registered, new Set());
+          run.failed(registered.item, message);
+        }
       }
     }
 
     run.end();
   }
 
-  private collectRequestedItems(request: vscode.TestRunRequest): RegisteredTestItem[] {
-    const include = request.include ?? [...this.controller.items].map(([, item]) => item);
-    const excluded = new Set((request.exclude ?? []).map(item => item.id));
-    const collected = new Map<string, RegisteredTestItem>();
+  private async runGroupWithJsonEvents(
+    run: vscode.TestRun,
+    group: TestRunGroup,
+    workspaceRoot: string
+  ): Promise<void> {
+    const parser = new GoTestJsonStreamParser();
+    const itemByGoTestName = new Map(group.items.map(registered => [buildGoTestJsonTestName(registered.target), registered]));
+    const started = new Set<string>();
+    const completed = new Set<string>();
+    const outputByGoTestName = new Map<string, string[]>();
 
-    for (const item of include) {
-      this.collectItemAndChildren(item, excluded, collected);
+    const handleRecord = (record: GoTestJsonStreamRecord): void => {
+      if (record.kind === 'raw') {
+        this.appendRunOutput(run, `${record.line}\n`);
+        return;
+      }
+      this.applyGoTestJsonEvent(run, record.event, itemByGoTestName, started, completed, outputByGoTestName);
+    };
+
+    const result = await runGoTestTarget(group.root.target, {
+      workspaceRoot,
+      output: this.output,
+      json: true,
+      writeProcessOutput: false,
+      onStdout: chunk => {
+        for (const record of parser.push(chunk)) {
+          handleRecord(record);
+        }
+      },
+      onStderr: chunk => {
+        this.appendRunOutput(run, chunk);
+      }
+    });
+
+    for (const record of parser.flush()) {
+      handleRecord(record);
     }
 
-    return [...collected.values()];
+    if (result.stderr.length > 0) {
+      this.output.append(result.stderr);
+    }
+
+    if (!result.success && ![...completed].some(id => group.items.some(registered => registered.item.id === id))) {
+      this.ensureStarted(run, group.root, started);
+      run.failed(
+        group.root.item,
+        new vscode.TestMessage(`go test failed with exit code ${result.code ?? 'unknown'}.`)
+      );
+      completed.add(group.root.item.id);
+    }
+
+    for (const registered of group.items) {
+      if (completed.has(registered.item.id)) {
+        continue;
+      }
+      this.ensureStarted(run, registered, started);
+      if (result.success) {
+        run.passed(registered.item);
+      } else {
+        run.failed(
+          registered.item,
+          new vscode.TestMessage(`go test finished without a mapped result for ${registered.target.label}.`)
+        );
+      }
+    }
+  }
+
+  private applyGoTestJsonEvent(
+    run: vscode.TestRun,
+    event: GoTestJsonEvent,
+    itemByGoTestName: Map<string, RegisteredTestItem>,
+    started: Set<string>,
+    completed: Set<string>,
+    outputByGoTestName: Map<string, string[]>
+  ): void {
+    const registered = event.Test ? itemByGoTestName.get(event.Test) : undefined;
+
+    if (event.Action === 'output') {
+      const output = event.Output ?? '';
+      if (output.length === 0) {
+        return;
+      }
+      this.appendRunOutput(run, output, registered?.item);
+      this.output.append(output);
+      if (event.Test) {
+        const existing = outputByGoTestName.get(event.Test) ?? [];
+        existing.push(output);
+        outputByGoTestName.set(event.Test, existing);
+      }
+      return;
+    }
+
+    if (!registered) {
+      return;
+    }
+
+    if (event.Action === 'run' || event.Action === 'cont') {
+      this.ensureStarted(run, registered, started);
+      return;
+    }
+
+    if (event.Action === 'pass') {
+      this.ensureStarted(run, registered, started);
+      run.passed(registered.item, toDurationMs(event.Elapsed));
+      completed.add(registered.item.id);
+      return;
+    }
+
+    if (event.Action === 'skip') {
+      this.ensureStarted(run, registered, started);
+      run.skipped(registered.item);
+      completed.add(registered.item.id);
+      return;
+    }
+
+    if (event.Action === 'fail') {
+      this.ensureStarted(run, registered, started);
+      run.failed(registered.item, this.createFailureMessage(registered, event, outputByGoTestName), toDurationMs(event.Elapsed));
+      completed.add(registered.item.id);
+    }
+  }
+
+  private createFailureMessage(
+    registered: RegisteredTestItem,
+    event: GoTestJsonEvent,
+    outputByGoTestName: Map<string, string[]>
+  ): vscode.TestMessage {
+    const output = event.Test ? (outputByGoTestName.get(event.Test) ?? []).join('').trim() : '';
+    const message = output.length > 0 ? output : `go test failed for ${registered.target.label}.`;
+    return new vscode.TestMessage(message);
+  }
+
+  private ensureStarted(run: vscode.TestRun, registered: RegisteredTestItem, started: Set<string>): void {
+    if (started.has(registered.item.id)) {
+      return;
+    }
+    run.started(registered.item);
+    started.add(registered.item.id);
+  }
+
+  private appendRunOutput(run: vscode.TestRun, output: string, item?: vscode.TestItem): void {
+    run.appendOutput(output.replace(/\r?\n/g, '\r\n'), undefined, item);
+  }
+
+  private collectRequestedRunGroups(request: vscode.TestRunRequest): TestRunGroup[] {
+    const include = request.include ?? [...this.controller.items].map(([, item]) => item);
+    const includeIds = new Set(include.map(item => item.id));
+    const excluded = new Set((request.exclude ?? []).map(item => item.id));
+    const groups = new Map<string, TestRunGroup>();
+
+    for (const item of include) {
+      if (excluded.has(item.id) || hasIncludedAncestor(item, includeIds)) {
+        continue;
+      }
+      const root = this.registeredItems.get(item.id);
+      if (!root) {
+        continue;
+      }
+      const items = new Map<string, RegisteredTestItem>();
+      this.collectItemAndChildren(item, excluded, items);
+      groups.set(root.item.id, {
+        root,
+        items: [...items.values()]
+      });
+    }
+
+    return [...groups.values()];
   }
 
   private collectItemAndChildren(
@@ -302,7 +464,6 @@ class GoBenchTestingApiPrototype implements vscode.Disposable {
     const registered = this.registeredItems.get(item.id);
     if (registered) {
       collected.set(item.id, registered);
-      return;
     }
 
     item.children.forEach(child => {
@@ -336,4 +497,22 @@ function toVsCodeRange(range: SourceRange): vscode.Range {
     new vscode.Position(range.start.line, range.start.character),
     new vscode.Position(range.end.line, range.end.character)
   );
+}
+
+function hasIncludedAncestor(item: vscode.TestItem, includeIds: ReadonlySet<string>): boolean {
+  let parent = item.parent;
+  while (parent) {
+    if (includeIds.has(parent.id)) {
+      return true;
+    }
+    parent = parent.parent;
+  }
+  return false;
+}
+
+function toDurationMs(elapsed: number | undefined): number | undefined {
+  if (typeof elapsed !== 'number') {
+    return undefined;
+  }
+  return Math.max(0, Math.round(elapsed * 1000));
 }

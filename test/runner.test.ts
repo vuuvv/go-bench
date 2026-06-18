@@ -74,4 +74,20 @@ describe('go test runner command construction', () => {
       "go test ./pkg -run '^TestNormalize$/^url_path_$/^api$/^v1$/^brackets_\\[ok\\]$'"
     );
   });
+
+  it('adds go test -json for structured Testing API runs without changing the run pattern', () => {
+    const workspaceRoot = join('/', 'workspace', 'repo');
+    const target: GoTestRunTarget = {
+      file: join(workspaceRoot, 'pkg', 'normalize_test.go'),
+      packageDir: join(workspaceRoot, 'pkg'),
+      testName: 'TestNormalize',
+      subtestPath: ['case with spaces'],
+      label: 'TestNormalize/case with spaces'
+    };
+
+    assert.equal(
+      buildGoTestCommand(target, workspaceRoot, 'go', { json: true }),
+      "go test -json ./pkg -run '^TestNormalize$/^case_with_spaces$'"
+    );
+  });
 });

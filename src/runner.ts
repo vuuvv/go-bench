@@ -39,6 +39,14 @@ export type GoTestRunnerOptions = {
   goCommand?: string;
   /** 输出接收方，通常是扩展共享的 output channel。 */
   output: RunnerOutput;
+  /** 是否启用 `go test -json`，Testing API 需要结构化事件来映射子测试状态。 */
+  json?: boolean;
+  /** 收到 stdout chunk 时的旁路回调，用于 Test Results 流式解析。 */
+  onStdout?: (chunk: string) => void;
+  /** 收到 stderr chunk 时的旁路回调，用于 Test Results 保留非 JSON 输出。 */
+  onStderr?: (chunk: string) => void;
+  /** 是否把子进程原始输出写入 output；JSON 模式下调用方通常会改写为用户可读输出。 */
+  writeProcessOutput?: boolean;
 };
 
 /** `go test` 子进程完成后的结果。 */
@@ -47,6 +55,10 @@ export type GoTestRunResult = {
   code: number | null;
   /** `go test` 进程是否按零退出码成功完成。 */
   success: boolean;
+  /** 子进程 stdout 原文；Testing API 会解析这里的 JSON 事件作为兜底。 */
+  stdout: string;
+  /** 子进程 stderr 原文；启动或工具链错误时用于生成 Test Results 输出。 */
+  stderr: string;
 };
 
 /** 正则元字符转义，保证用户源码里的 case 名称按字面量匹配。 */
@@ -105,11 +117,18 @@ export function resolvePackageArgument(packageDir: string, workspaceRoot: string
 }
 
 /** 构造可展示或可粘贴到 shell 的 `go test` 命令文本。 */
-export function buildGoTestCommand(target: GoTestRunTarget, workspaceRoot: string, goCommand = 'go'): string {
+export function buildGoTestCommand(
+  target: GoTestRunTarget,
+  workspaceRoot: string,
+  goCommand = 'go',
+  options: Pick<GoTestRunnerOptions, 'json'> = {}
+): string {
   const packageDir = target.packageDir ?? dirname(target.file);
   const packageArg = resolvePackageArgument(packageDir, workspaceRoot);
   const runPattern = buildRunPattern(target.testName, target.subtestPath);
-  return [goCommand, 'test', packageArg, '-run', runPattern].map(shellQuote).join(' ');
+  return [goCommand, 'test', ...(options.json ? ['-json'] : []), packageArg, '-run', runPattern]
+    .map(shellQuote)
+    .join(' ');
 }
 
 /**
@@ -126,24 +145,36 @@ export async function runGoTestTarget(
   const packageDir = target.packageDir ?? dirname(target.file);
   const packageArg = resolvePackageArgument(packageDir, options.workspaceRoot);
   const runPattern = buildRunPattern(target.testName, target.subtestPath);
+  const args = ['test', ...(options.json ? ['-json'] : []), packageArg, '-run', runPattern];
+  const writeProcessOutput = options.writeProcessOutput ?? true;
 
   options.output.appendLine('');
   options.output.appendLine(`Running ${target.label}`);
-  options.output.appendLine(`$ ${buildGoTestCommand(target, options.workspaceRoot, goCommand)}`);
+  options.output.appendLine(`$ ${buildGoTestCommand(target, options.workspaceRoot, goCommand, { json: options.json })}`);
 
   return await new Promise((resolve, reject) => {
-    const child = spawn(goCommand, ['test', packageArg, '-run', runPattern], {
+    const child = spawn(goCommand, args, {
       cwd: options.workspaceRoot,
       stdio: ['ignore', 'pipe', 'pipe']
     });
+    let stdout = '';
+    let stderr = '';
 
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk: string) => {
-      options.output.append(chunk);
+      stdout += chunk;
+      options.onStdout?.(chunk);
+      if (writeProcessOutput) {
+        options.output.append(chunk);
+      }
     });
     child.stderr.on('data', (chunk: string) => {
-      options.output.append(chunk);
+      stderr += chunk;
+      options.onStderr?.(chunk);
+      if (writeProcessOutput) {
+        options.output.append(chunk);
+      }
     });
 
     child.on('error', error => {
@@ -151,7 +182,7 @@ export async function runGoTestTarget(
     });
 
     child.on('close', code => {
-      resolve({ code, success: code === 0 });
+      resolve({ code, success: code === 0, stdout, stderr });
     });
   });
 }
