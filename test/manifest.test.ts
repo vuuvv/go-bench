@@ -51,5 +51,6 @@ describe('VSCode extension manifest', () => {
     assert.deepEqual(properties[configurationKeys.nameFields].default, defaultTableTestConfig.nameFields);
     assert.equal(properties[configurationKeys.showFunctionRun].default, defaultTableTestConfig.showFunctionRun);
     assert.equal(properties[configurationKeys.showCaseRun].default, defaultTableTestConfig.showCaseRun);
+    assert.equal(properties[configurationKeys.testingApiEnabled].default, defaultTableTestConfig.testingApiEnabled);
   });
 });

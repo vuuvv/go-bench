@@ -22,7 +22,8 @@ describe('extension skeleton constants', () => {
       enabled: true,
       nameFields: ['name', 'desc', 'caseName', 'title'],
       showFunctionRun: true,
-      showCaseRun: true
+      showCaseRun: true,
+      testingApiEnabled: false
     });
   });
 
@@ -31,7 +32,8 @@ describe('extension skeleton constants', () => {
       'goPlus.tableTests.enabled',
       'goPlus.tableTests.nameFields',
       'goPlus.tableTests.showFunctionRun',
-      'goPlus.tableTests.showCaseRun'
+      'goPlus.tableTests.showCaseRun',
+      'goPlus.tableTests.testingApi.enabled'
     ]);
   });
 });

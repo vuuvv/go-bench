@@ -20,13 +20,15 @@ describe('table test configuration normalization', () => {
         enabled: false,
         nameFields: ['title', '', 42],
         showFunctionRun: false,
-        showCaseRun: true
+        showCaseRun: true,
+        testingApiEnabled: true
       }),
       {
         enabled: false,
         nameFields: ['title'],
         showFunctionRun: false,
-        showCaseRun: true
+        showCaseRun: true,
+        testingApiEnabled: true
       }
     );
   });

@@ -59,6 +59,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show run entries for resolvable table-driven test cases."
+        },
+        "goPlus.tableTests.testingApi.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the experimental VSCode Testing API tree for Go Plus table-driven tests."
         }
       }
     }

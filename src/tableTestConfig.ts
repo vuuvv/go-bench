@@ -17,6 +17,8 @@ export type TableTestConfig = {
   showFunctionRun: boolean;
   /** 是否展示单个 table case 的 `Run Case` 入口。 */
   showCaseRun: boolean;
+  /** 是否启用实验性的 VSCode Testing API 测试树。 */
+  testingApiEnabled: boolean;
 };
 
 /** 用户配置的原始形状，测试和 VSCode 适配层都可以按需传入局部字段。 */
@@ -38,6 +40,10 @@ export function normalizeTableTestConfig(raw: RawTableTestConfig = {}): TableTes
     nameFields: nameFields.length > 0 ? nameFields : [...defaultTableTestConfig.nameFields],
     showFunctionRun:
       typeof raw.showFunctionRun === 'boolean' ? raw.showFunctionRun : defaultTableTestConfig.showFunctionRun,
-    showCaseRun: typeof raw.showCaseRun === 'boolean' ? raw.showCaseRun : defaultTableTestConfig.showCaseRun
+    showCaseRun: typeof raw.showCaseRun === 'boolean' ? raw.showCaseRun : defaultTableTestConfig.showCaseRun,
+    testingApiEnabled:
+      typeof raw.testingApiEnabled === 'boolean'
+        ? raw.testingApiEnabled
+        : defaultTableTestConfig.testingApiEnabled
   };
 }

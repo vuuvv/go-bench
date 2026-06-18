@@ -11,6 +11,8 @@ import * as vscode from 'vscode';
 import { commands, configurationKeys, outputChannelName } from './constants';
 import { GoTestCodeLensProvider } from './codelens';
 import { runGoTestTarget, type GoTestRunTarget } from './runner';
+import { GoPlusTestingApiPrototypeManager } from './testing';
+import { normalizeTableTestConfig } from './tableTestConfig';
 
 /**
  * 激活扩展并注册当前阶段的基础能力。
@@ -55,6 +57,8 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   const goTestCodeLensProvider = new GoTestCodeLensProvider({ output: outputChannel });
+  const testingApiPrototype = new GoPlusTestingApiPrototypeManager({ output: outputChannel });
+  testingApiPrototype.setEnabled(readTestingApiEnabledFromWorkspace());
   const codeLensRegistration = vscode.languages.registerCodeLensProvider(
     { language: 'go', scheme: 'file', pattern: '**/*_test.go' },
     goTestCodeLensProvider
@@ -62,13 +66,19 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const documentChangeSubscription = vscode.workspace.onDidChangeTextDocument(event => {
     goTestCodeLensProvider.refreshDocument(event.document.uri.fsPath);
+    testingApiPrototype.refreshDocument(event.document);
   });
   const documentSaveSubscription = vscode.workspace.onDidSaveTextDocument(document => {
     goTestCodeLensProvider.refreshDocument(document.uri.fsPath);
+    testingApiPrototype.refreshDocument(document);
   });
   const configurationSubscription = vscode.workspace.onDidChangeConfiguration(event => {
     if (Object.values(configurationKeys).some(key => event.affectsConfiguration(key))) {
       goTestCodeLensProvider.refreshAll();
+      testingApiPrototype.setEnabled(readTestingApiEnabledFromWorkspace());
+      for (const document of vscode.workspace.textDocuments) {
+        testingApiPrototype.refreshDocument(document);
+      }
     }
   });
 
@@ -76,11 +86,20 @@ export function activate(context: vscode.ExtensionContext): void {
     noopCommand,
     runTestCommand,
     goTestCodeLensProvider,
+    testingApiPrototype,
     codeLensRegistration,
     documentChangeSubscription,
     documentSaveSubscription,
     configurationSubscription
   );
+}
+
+/** 从 VSCode 配置读取实验 Testing API 开关。 */
+function readTestingApiEnabledFromWorkspace(): boolean {
+  const configuration = vscode.workspace.getConfiguration();
+  return normalizeTableTestConfig({
+    testingApiEnabled: configuration.get(configurationKeys.testingApiEnabled)
+  }).testingApiEnabled;
 }
 
 /**
