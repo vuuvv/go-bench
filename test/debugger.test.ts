@@ -29,7 +29,7 @@ describe('go test debug configuration', () => {
       mode: 'test',
       program: join(workspaceRoot, 'pkg'),
       cwd: join(workspaceRoot, 'pkg'),
-      args: ['-test.run=^TestNormalize$/^case_with_spaces$/^regex_\\.\\*_chars$']
+      args: ['-test.run', '^TestNormalize$/^case_with_spaces$/^regex_\\.\\*_chars$']
     });
   });
 });

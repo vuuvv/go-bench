@@ -22,8 +22,9 @@ export type GoTestDebugConfiguration = {
 /**
  * 构造 Go test debug 配置。
  *
- * 官方 Go 调试适配器在 `mode: "test"` 下会编译并调试 package 测试二进制。`-test.run` 必须使用
- * testing 二进制参数形式，而不是 `go test -run`，所以这里只复用 pattern，不复用完整 shell 命令。
+ * 官方 Go 调试适配器在 `mode: "test"` 下会编译并调试 package 测试二进制。Go 扩展自身的
+ * Debug Test 命令使用 `["-test.run", pattern]`，这里保持同样格式，避免不同 adapter 对合并参数的
+ * 解析不一致。
  */
 export function buildGoTestDebugConfiguration(
   target: GoTestRunTarget
@@ -37,6 +38,6 @@ export function buildGoTestDebugConfiguration(
     mode: 'test',
     program: packageDir,
     cwd: packageDir,
-    args: [`-test.run=${runPattern}`]
+    args: ['-test.run', runPattern]
   };
 }

@@ -571,9 +571,9 @@ async function startDebuggingAndVerify(
     return false;
   }
 
-  const started = await sessionStarted;
-  if (!started) {
+  const observedSession = await sessionStarted;
+  if (!observedSession) {
     void vscode.window.showWarningMessage(`Go Bench: debug request was accepted but no debug session started for ${label}.`);
   }
-  return started;
+  return true;
 }
