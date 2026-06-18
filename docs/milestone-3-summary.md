@@ -47,6 +47,18 @@
 | `go test` 输出查看 | 输出到 `Go Plus` output channel |
 | 动态或不支持 case | 沿用里程碑 2 策略，不生成 case 入口 |
 
+## 当前插件内可进行的操作
+
+- 打开 Go 测试文件：在 Extension Development Host 中打开任意 `_test.go` 文件，插件会尝试识别普通 `func TestXxx(t *testing.T)`。
+- 查看函数级运行入口：当 `goPlus.tableTests.showFunctionRun` 为 `true` 时，可以在测试函数名附近看到 `Run Test` CodeLens。
+- 运行整个测试函数：点击 `Run Test` 后，插件会在当前 workspace root 下执行类似 `go test ./pkg -run '^TestName$'` 的命令。
+- 查看 table case 运行入口：对里程碑 2 已支持的静态 table-driven case，可以在 table entry 附近看到 `Run Case` CodeLens。
+- 运行单个 table case：点击 `Run Case` 后，插件会执行类似 `go test ./pkg -run '^TestName$/^case name$'` 的命令，只选择对应 subtest path。
+- 查看运行输出：每次运行会打开或写入 `Go Plus` output channel，显示目标名称、可复现命令和 Go 工具链原始输出。
+- 控制入口显示：可以通过 `goPlus.tableTests.enabled` 总开关启用或禁用识别，通过 `showFunctionRun` 和 `showCaseRun` 分别控制函数级与 case 级 CodeLens。
+- 扩展可识别名称字段：可以修改 `goPlus.tableTests.nameFields`，让 parser 把 `name`、`desc`、`caseName`、`title` 之外的静态字符串字段也视作 case 名称。
+- 安全忽略不支持 case：动态拼接、helper 生成名称或无法静态回溯的 case 不会显示 `Run Case`，避免点击后运行错误目标。
+
 ## 明确不支持或未完成
 
 - 尚未实现 debounce、缓存和文档变更事件主动刷新策略，等待里程碑 4。
