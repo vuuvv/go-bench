@@ -26,15 +26,20 @@ describe('VSCode extension manifest', () => {
     assert.deepEqual(manifest.activationEvents, [
       'onLanguage:go',
       'workspaceContains:**/*_test.go',
-      'onCommand:goPlus.noop'
+      'onCommand:goPlus.noop',
+      'onCommand:goPlus.runTest'
     ]);
   });
 
-  it('contributes the no-op command used to verify extension startup', () => {
+  it('contributes extension commands used by startup and CodeLens execution', () => {
     assert.deepEqual(manifest.contributes.commands, [
       {
         command: commands.noop,
         title: 'Go Plus: No-op'
+      },
+      {
+        command: commands.runTest,
+        title: 'Go Plus: Run Test'
       }
     ]);
   });

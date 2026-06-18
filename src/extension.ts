@@ -1,12 +1,16 @@
 /**
  * Go Plus VSCode 扩展入口。
  *
- * 里程碑 0 只负责完成可启动骨架：注册命令、创建 output channel，并在 Go 文件或工作区存在
- * `_test.go` 文件时激活。后续里程碑会在这个入口继续挂载 parser、CodeLens provider 和 runner。
+ * 入口负责把可独立测试的模块接入 VSCode 生命周期：注册命令、创建 output channel、挂载 Go 测试
+ * 文件 CodeLens provider，并把用户点击的运行目标交给 runner。具体识别和命令构造留在独立模块，
+ * 让 Extension Host 入口保持薄而稳定。
  */
 
+import { dirname } from 'node:path';
 import * as vscode from 'vscode';
 import { commands, outputChannelName } from './constants';
+import { GoTestCodeLensProvider } from './codelens';
+import { runGoTestTarget, type GoTestRunTarget } from './runner';
 
 /**
  * 激活扩展并注册当前阶段的基础能力。
@@ -25,7 +29,37 @@ export function activate(context: vscode.ExtensionContext): void {
     void vscode.window.showInformationMessage('Go Plus is active.');
   });
 
-  context.subscriptions.push(noopCommand);
+  const runTestCommand = vscode.commands.registerCommand(commands.runTest, async (target: GoTestRunTarget) => {
+    outputChannel.show(true);
+
+    try {
+      const normalizedTarget = normalizeRunTarget(target);
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(normalizedTarget.file));
+      if (!workspaceFolder) {
+        void vscode.window.showErrorMessage('Go Plus: cannot determine workspace folder for this Go test file.');
+        return;
+      }
+
+      const result = await runGoTestTarget(normalizedTarget, {
+        workspaceRoot: workspaceFolder.uri.fsPath,
+        output: outputChannel
+      });
+
+      if (!result.success) {
+        void vscode.window.showErrorMessage(`Go Plus: go test failed with exit code ${result.code ?? 'unknown'}.`);
+      }
+    } catch (error) {
+      outputChannel.appendLine(`Go Plus run failed: ${String(error)}`);
+      void vscode.window.showErrorMessage(`Go Plus: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
+
+  const codeLensProvider = vscode.languages.registerCodeLensProvider(
+    { language: 'go', scheme: 'file', pattern: '**/*_test.go' },
+    new GoTestCodeLensProvider({ output: outputChannel })
+  );
+
+  context.subscriptions.push(noopCommand, runTestCommand, codeLensProvider);
 }
 
 /**
@@ -36,4 +70,12 @@ export function activate(context: vscode.ExtensionContext): void {
  */
 export function deactivate(): void {
   // 由 VSCode 订阅生命周期统一释放资源。
+}
+
+function normalizeRunTarget(target: GoTestRunTarget): GoTestRunTarget {
+  return {
+    ...target,
+    packageDir: target.packageDir ?? dirname(target.file),
+    subtestPath: Array.isArray(target.subtestPath) ? target.subtestPath : []
+  };
 }

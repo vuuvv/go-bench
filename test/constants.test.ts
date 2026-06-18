@@ -10,6 +10,7 @@ import { commands, configurationKeys, defaultTableTestConfig, outputChannelName 
 describe('extension skeleton constants', () => {
   it('uses the contributed no-op command id', () => {
     assert.equal(commands.noop, 'goPlus.noop');
+    assert.equal(commands.runTest, 'goPlus.runTest');
   });
 
   it('uses a stable output channel name', () => {
