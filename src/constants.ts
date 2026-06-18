@@ -8,7 +8,9 @@ export const commands = {
   /** no-op 命令用于验证扩展激活、命令注册和 output channel 是否可用。 */
   noop: 'goPlus.noop',
   /** 从 CodeLens 触发 `go test -run` 的命令入口。 */
-  runTest: 'goPlus.runTest'
+  runTest: 'goPlus.runTest',
+  /** 重新扫描 workspace 并刷新实验 Testing API 测试树。 */
+  refreshTestTree: 'goPlus.refreshTestTree'
 } as const;
 
 /** VSCode output channel 名称，后续 runner 会复用同一个频道展示 `go test` 输出。 */

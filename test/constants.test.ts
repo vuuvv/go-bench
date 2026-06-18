@@ -11,6 +11,7 @@ describe('extension skeleton constants', () => {
   it('uses the contributed no-op command id', () => {
     assert.equal(commands.noop, 'goPlus.noop');
     assert.equal(commands.runTest, 'goPlus.runTest');
+    assert.equal(commands.refreshTestTree, 'goPlus.refreshTestTree');
   });
 
   it('uses a stable output channel name', () => {

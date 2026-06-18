@@ -17,6 +17,8 @@ import type { TableTestConfig } from './tableTestConfig';
 
 const controllerId = 'go-plus.tableTests';
 const controllerLabel = 'Go Plus Table Tests';
+const goTestFilePattern = '**/*_test.go';
+const ignoredTestFilePattern = '**/{.git,node_modules,out}/**';
 
 /** Testing API 原型依赖项，测试或后续集成可以替换 parser/config。 */
 export type GoPlusTestingApiPrototypeOptions = {
@@ -65,6 +67,14 @@ export class GoPlusTestingApiPrototypeManager implements vscode.Disposable {
     void this.prototype?.refreshDocument(document);
   }
 
+  /** 扫描 workspace 中所有 Go 测试文件并重建实验测试树；关闭时返回 0。 */
+  public async refreshWorkspace(): Promise<number> {
+    if (!this.prototype) {
+      return 0;
+    }
+    return await this.prototype.refreshWorkspace();
+  }
+
   /** 释放当前 controller。 */
   public dispose(): void {
     this.prototype?.dispose();
@@ -85,6 +95,9 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
     this.parser = options.parser ?? new GoHelperParser();
     this.getConfig = options.getConfig ?? readTableTestConfigFromWorkspace;
     this.controller = vscode.tests.createTestController(controllerId, controllerLabel);
+    this.controller.refreshHandler = async (token): Promise<void> => {
+      await this.refreshWorkspace(token);
+    };
     this.disposables.push(this.controller);
     this.disposables.push(
       this.controller.createRunProfile('Run', vscode.TestRunProfileKind.Run, request => {
@@ -120,6 +133,37 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
       this.output.appendLine(`Go Plus Testing API parse failed for ${file}: ${String(error)}`);
       this.removeFileItems(file);
     }
+  }
+
+  /**
+   * 重新扫描整个 workspace 并刷新测试树。
+   *
+   * 这个入口同时服务命令面板命令和 Test Explorer 的 refresh 按钮。扫描会读取未打开的 `_test.go`
+   * 文件；如果某个文件已经在编辑器中打开，则优先使用内存中的未保存文本，避免测试树落后于用户编辑。
+   */
+  public async refreshWorkspace(token?: vscode.CancellationToken): Promise<number> {
+    const config = this.getConfig();
+    if (!config.enabled || !config.testingApiEnabled) {
+      this.clearAllItems();
+      return 0;
+    }
+
+    const uris = await vscode.workspace.findFiles(goTestFilePattern, ignoredTestFilePattern);
+    this.output.appendLine(`Go Plus Testing API refresh: scanning ${uris.length} Go test file(s).`);
+    this.clearAllItems();
+
+    let refreshed = 0;
+    for (const uri of uris) {
+      if (token?.isCancellationRequested) {
+        break;
+      }
+      const document = await openWorkspaceDocument(uri);
+      await this.refreshDocument(document);
+      refreshed++;
+    }
+
+    this.output.appendLine(`Go Plus Testing API refresh: refreshed ${refreshed} Go test file(s).`);
+    return refreshed;
   }
 
   public dispose(): void {
@@ -158,6 +202,19 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
       this.controller.items.delete(id);
       this.registeredItems.delete(id);
     }
+  }
+
+  private clearAllItems(): void {
+    const itemIds = [...this.controller.items].map(([id]) => id);
+    for (const id of itemIds) {
+      this.controller.items.delete(id);
+    }
+    this.registeredItems.forEach(registered => {
+      registered.item.children.forEach(child => {
+        registered.item.children.delete(child.id);
+      });
+    });
+    this.registeredItems.clear();
   }
 
   private async runTests(request: vscode.TestRunRequest): Promise<void> {
@@ -247,6 +304,11 @@ class GoPlusTestingApiPrototype implements vscode.Disposable {
       this.output.appendLine(`Go Plus Testing API diagnostic ${file}${position} (${configKey}): ${diagnostic.message}`);
     }
   }
+}
+
+async function openWorkspaceDocument(uri: vscode.Uri): Promise<vscode.TextDocument> {
+  const existing = vscode.workspace.textDocuments.find(document => document.uri.fsPath === uri.fsPath);
+  return existing ?? (await vscode.workspace.openTextDocument(uri));
 }
 
 function toVsCodeRange(range: SourceRange): vscode.Range {

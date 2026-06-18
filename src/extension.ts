@@ -59,6 +59,21 @@ export function activate(context: vscode.ExtensionContext): void {
   const goTestCodeLensProvider = new GoTestCodeLensProvider({ output: outputChannel });
   const testingApiPrototype = new GoPlusTestingApiPrototypeManager({ output: outputChannel });
   testingApiPrototype.setEnabled(readTestingApiEnabledFromWorkspace());
+
+  const refreshTestTreeCommand = vscode.commands.registerCommand(commands.refreshTestTree, async () => {
+    outputChannel.show(true);
+    if (!readTestingApiEnabledFromWorkspace()) {
+      void vscode.window.showInformationMessage(
+        'Go Plus: enable goPlus.tableTests.testingApi.enabled before refreshing the Test Explorer tree.'
+      );
+      return;
+    }
+
+    testingApiPrototype.setEnabled(true);
+    const refreshed = await testingApiPrototype.refreshWorkspace();
+    void vscode.window.showInformationMessage(`Go Plus: refreshed Test Explorer tree from ${refreshed} Go test file(s).`);
+  });
+
   const codeLensRegistration = vscode.languages.registerCodeLensProvider(
     { language: 'go', scheme: 'file', pattern: '**/*_test.go' },
     goTestCodeLensProvider
@@ -85,6 +100,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     noopCommand,
     runTestCommand,
+    refreshTestTreeCommand,
     goTestCodeLensProvider,
     testingApiPrototype,
     codeLensRegistration,

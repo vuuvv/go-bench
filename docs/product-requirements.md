@@ -538,6 +538,23 @@ runner 必须生成兼容 Go subtest 选择规则的正则路径：
 - `docs` 目录下有 Testing API 评估文档，包含测试结果和最终建议。
 - 里程碑文档更新当前可进行操作，例如如何启用或查看 Testing API 原型、如何复现评估结果。
 
+### 里程碑 6：项目级测试树刷新
+
+- 添加命令或按钮，允许用户主动重新扫描整个 workspace 并生成 Go Plus 测试树。
+- 将刷新能力接入 VSCode Test Explorer 的 Testing API refresh 入口。
+- 扫描未打开的 `_test.go` 文件，并优先使用已打开文档的未保存内容。
+- 刷新时清理旧测试树，避免删除、重命名或不再可解析的文件残留过期节点。
+- 为命令 ID、manifest 贡献和刷新流程添加注释、测试和工作文档。
+
+退出标准：
+
+- 用户可以通过命令面板执行 `Go Plus: Refresh Test Tree` 重新生成测试树。
+- 启用 Testing API 原型后，用户可以通过 Test Explorer refresh 按钮重新扫描整个项目。
+- 未打开的 `_test.go` 文件也能出现在 Go Plus 测试树中。
+- Testing API 关闭时，刷新命令给出清晰提示，不产生异常。
+- 完整测试套件通过，并在工作文档中记录结果。
+- 里程碑文档更新当前可进行操作，例如如何启用 Testing API、如何执行项目级刷新、如何排查未显示文件。
+
 ## 15. 测试 fixture 计划
 
 必备 fixtures：

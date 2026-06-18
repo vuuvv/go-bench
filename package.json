@@ -15,7 +15,8 @@
     "onLanguage:go",
     "workspaceContains:**/*_test.go",
     "onCommand:goPlus.noop",
-    "onCommand:goPlus.runTest"
+    "onCommand:goPlus.runTest",
+    "onCommand:goPlus.refreshTestTree"
   ],
   "main": "./out/src/extension.js",
   "contributes": {
@@ -27,6 +28,10 @@
       {
         "command": "goPlus.runTest",
         "title": "Go Plus: Run Test"
+      },
+      {
+        "command": "goPlus.refreshTestTree",
+        "title": "Go Plus: Refresh Test Tree"
       }
     ],
     "configuration": {
