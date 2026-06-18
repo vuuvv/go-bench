@@ -1,8 +1,9 @@
 /**
  * parser 模块的共享数据结构。
  *
- * 本阶段只暴露测试函数级元数据，不提前承诺 table case 结构。位置全部使用 VSCode 兼容的
- * zero-based line/character，后续 CodeLens、locator 和 Testing API 都可以直接复用。
+ * 位置全部使用 VSCode 兼容的 zero-based line/character，后续 CodeLens、locator 和 Testing API
+ * 都可以直接复用。里程碑 2 开始在测试函数下挂载 table case 元数据，调用方仍然可以只消费函数级
+ * 信息而不关心 case 识别细节。
  */
 
 /** VSCode 兼容的源码位置，`character` 使用 UTF-16 code unit 计数。 */
@@ -43,6 +44,31 @@ export type GoTestFunctionMetadata = {
   range: SourceRange;
   /** 函数名本身的源码范围，后续 CodeLens 或跳转可以使用更精确锚点。 */
   nameRange: SourceRange;
+  /** 当前测试函数中可静态解析的 table-driven subtest case。 */
+  tableCases: TableTestCaseMetadata[];
+};
+
+/** table-driven case 的静态识别置信度。 */
+export type TableTestCaseConfidence = 'exact' | 'probable';
+
+/** 已识别的 table-driven subtest case 元数据。 */
+export type TableTestCaseMetadata = {
+  /** 稳定 ID，组合文件、测试函数和 subtest path，便于后续 CodeLens cache 去重。 */
+  id: string;
+  /** UI 展示标签，里程碑 3 可直接用于 `Run Case` CodeLens 的目标名。 */
+  label: string;
+  /** case 所在文件路径，保持 parser 调用方传入的文件名。 */
+  file: string;
+  /** 所属 Go 测试函数名，例如 `TestNormalize`。 */
+  testName: string;
+  /** 当前阶段解析到的叶子 subtest 名称，例如 `empty input`。 */
+  subtestName: string;
+  /** Go subtest 路径；未来 nested subtest 会在这里追加多段。 */
+  subtestPath: string[];
+  /** CodeLens 优先锚定的源码范围，通常是 table entry。 */
+  range: SourceRange;
+  /** 当前 case 识别的置信度；里程碑 2 只产出可安全运行的结果。 */
+  confidence: TableTestCaseConfidence;
 };
 
 /** 单个 Go 测试文件的解析结果。 */

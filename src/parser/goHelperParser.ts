@@ -10,6 +10,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { defaultTableTestConfig } from '../constants';
 import { goParserHelperSource } from './helperSource';
 import type { GoTestFileParseResult, GoTestParser } from './types';
 
@@ -21,17 +22,21 @@ export type GoHelperParserOptions = {
   goCommand?: string;
   /** 单次解析超时时间，避免 helper 异常时卡住 Extension Host。 */
   timeoutMs?: number;
+  /** 可作为 table case 名称的字段名，默认与扩展配置保持一致。 */
+  nameFields?: string[];
 };
 
 /** 使用 Go 官方 parser helper 解析 `_test.go` 文件。 */
 export class GoHelperParser implements GoTestParser {
   private readonly goCommand: string;
   private readonly timeoutMs: number;
+  private readonly nameFields: string[];
 
   /** 创建 helper parser；默认配置适合 VSCode 交互式解析，测试可按需覆盖。 */
   public constructor(options: GoHelperParserOptions = {}) {
     this.goCommand = options.goCommand ?? 'go';
     this.timeoutMs = options.timeoutMs ?? 5_000;
+    this.nameFields = options.nameFields ?? [...defaultTableTestConfig.nameFields];
   }
 
   /**
@@ -46,7 +51,7 @@ export class GoHelperParser implements GoTestParser {
     }
 
     const helperPath = await ensureHelperFile();
-    const payload = JSON.stringify({ fileName: file, source });
+    const payload = JSON.stringify({ fileName: file, source, nameFields: this.nameFields });
     const stdout = await runHelper(this.goCommand, helperPath, payload, this.timeoutMs);
     return JSON.parse(stdout) as GoTestFileParseResult;
   }

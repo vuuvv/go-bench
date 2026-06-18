@@ -7,5 +7,7 @@ export type {
   GoTestParser,
   ParserDiagnostic,
   SourcePosition,
-  SourceRange
+  SourceRange,
+  TableTestCaseConfidence,
+  TableTestCaseMetadata
 } from './types';
