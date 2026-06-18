@@ -10,6 +10,7 @@ import { describe, it } from 'node:test';
 import { commands, configurationKeys, defaultTableTestConfig } from '../src/constants';
 
 type ExtensionManifest = {
+  main: string;
   activationEvents: string[];
   contributes: {
     commands: Array<{ command: string; title: string }>;
@@ -22,6 +23,10 @@ type ExtensionManifest = {
 const manifest = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as ExtensionManifest;
 
 describe('VSCode extension manifest', () => {
+  it('points to the compiled extension entry emitted by the current TypeScript layout', () => {
+    assert.equal(manifest.main, './out/src/extension.js');
+  });
+
   it('activates for Go files, Go test workspaces, and the no-op command', () => {
     assert.deepEqual(manifest.activationEvents, [
       'onLanguage:go',
