@@ -4,6 +4,7 @@
   "description": "Run Go table-driven test cases from CodeLens and the VS Code Test Explorer.",
   "version": "0.0.5",
   "publisher": "vuuvv",
+  "icon": "media/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",

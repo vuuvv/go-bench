@@ -20,6 +20,13 @@ table-driven tests 是 Go 项目中非常常见的测试写法，但编辑器支
 - 复用 Go 标准工具链，不替代官方 Go 插件。
 - 为后续调试、覆盖率、VSCode Testing API 集成留下清晰扩展点。
 
+### 3.1 品牌图标
+
+- 插件图标应简洁大方，在小尺寸下仍能识别。
+- 图标需要同时体现 Go 开发语境和 workbench / Test Explorer 工作台语境。
+- 推荐视觉方向：使用 Go 青蓝作为主色，结合侧面全身视角、简化扁平化的 Go 吉祥物和工具元素，例如扳手，避免过多文字和复杂细节。
+- 扩展 manifest 使用 `media/icon.png`；原始上传图保留为 `media/icon-source.png`。
+
 ## 4. 当前阶段非目标
 
 - 不替代官方 Go 插件。

@@ -11,6 +11,7 @@ import { commands, configurationKeys, defaultTableTestConfig } from '../src/cons
 
 type ExtensionManifest = {
   main: string;
+  icon?: string;
   activationEvents: string[];
   contributes: {
     commands: Array<{ command: string; title: string; icon?: string }>;
@@ -28,6 +29,10 @@ const manifest = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'u
 describe('VSCode extension manifest', () => {
   it('points to the compiled extension entry emitted by the current TypeScript layout', () => {
     assert.equal(manifest.main, './out/src/extension.js');
+  });
+
+  it('uses the Go Bench product icon', () => {
+    assert.equal(manifest.icon, 'media/icon.png');
   });
 
   it('activates for Go files and Go test workspaces', () => {
