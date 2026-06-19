@@ -452,7 +452,7 @@ go run .
 - 调试。
 - 编辑。
 - 归档到 group。
-- 删除。
+- 删除，且必须提供可见的 inline remove 按钮。
 - 复制路径。
 
 运行与调试 group 节点：
@@ -485,6 +485,19 @@ go run .
 - 运行目标缺失时，提示用户从列表中移除或重新定位。
 - Go 工具链不可用时，运行和调试都应提示检查 Go 安装和 PATH。
 - Debug adapter 缺失时，提示安装或启用官方 Go 插件。
+
+### 10.5 main 函数 CodeLens
+
+普通 Go 文件中如果静态识别到 `package main` 且包含 `func main(...)`，必须在 main 函数声明上方显示：
+
+- `Run Main`：复用 Run and Debug runnable 运行逻辑。
+- `Debug Main`：复用 Run and Debug runnable 调试逻辑。
+
+CodeLens 行为要求：
+
+- 不在 `_test.go` 文件中显示 main CodeLens。
+- CodeLens 目标名称使用 Run and Debug 的默认命名规则。
+- CodeLens 触发的运行目标应与 Run and Debug terminal 管理一致。
 
 ## 11. 技术要求
 

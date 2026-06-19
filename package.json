@@ -452,6 +452,11 @@
           "group": "inline@4"
         },
         {
+          "command": "goBench.runnables.remove",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "group": "inline@5"
+        },
+        {
           "command": "goBench.runnables.runGroup",
           "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroup",
           "group": "inline@0"

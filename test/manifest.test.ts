@@ -520,6 +520,11 @@ describe('VSCode extension manifest', () => {
         group: 'inline@4'
       },
       {
+        command: commands.removeRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        group: 'inline@5'
+      },
+      {
         command: commands.runRunnableGroup,
         when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroup`,
         group: 'inline@0'

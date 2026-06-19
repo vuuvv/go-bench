@@ -17,6 +17,7 @@ import {
 } from './constants';
 import { GoTestCodeLensProvider } from './codelens';
 import { buildGoTestDebugConfiguration, type GoTestDebugConfiguration } from './debugger';
+import { GoMainCodeLensProvider } from './mainCodeLens';
 import { isGoTestFile } from './parser';
 import type { GoTestRunTarget } from './runner';
 import { registerGoBenchSidebar } from './sidebar';
@@ -92,6 +93,7 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   const goTestCodeLensProvider = new GoTestCodeLensProvider({ output: outputChannel });
+  const goMainCodeLensProvider = new GoMainCodeLensProvider();
   const testingApiPrototype = new GoBenchTestingApiPrototypeManager({ output: outputChannel });
   void applyTestExplorerTreeVisibility(testingApiPrototype, outputChannel);
 
@@ -222,18 +224,25 @@ export function activate(context: vscode.ExtensionContext): void {
     { language: 'go', scheme: 'file', pattern: '**/*_test.go' },
     goTestCodeLensProvider
   );
+  const mainCodeLensRegistration = vscode.languages.registerCodeLensProvider(
+    { language: 'go', scheme: 'file', pattern: '**/*.go' },
+    goMainCodeLensProvider
+  );
 
   const documentChangeSubscription = vscode.workspace.onDidChangeTextDocument(event => {
     goTestCodeLensProvider.refreshDocument(event.document.uri.fsPath);
+    goMainCodeLensProvider.refreshDocument(event.document.uri.fsPath);
     testingApiPrototype.refreshDocument(event.document);
   });
   const documentSaveSubscription = vscode.workspace.onDidSaveTextDocument(document => {
     goTestCodeLensProvider.refreshDocument(document.uri.fsPath);
+    goMainCodeLensProvider.refreshDocument(document.uri.fsPath);
     testingApiPrototype.refreshDocument(document);
   });
   const configurationSubscription = vscode.workspace.onDidChangeConfiguration(event => {
     if (Object.values(configurationKeys).some(key => event.affectsConfiguration(key))) {
       goTestCodeLensProvider.refreshAll();
+      goMainCodeLensProvider.refreshAll();
       void applyTestExplorerTreeVisibility(testingApiPrototype, outputChannel);
       for (const document of vscode.workspace.textDocuments) {
         testingApiPrototype.refreshDocument(document);
@@ -253,8 +262,10 @@ export function activate(context: vscode.ExtensionContext): void {
     toggleTestTreeModeFromStandardGoCommand,
     sidebarRegistration,
     goTestCodeLensProvider,
+    goMainCodeLensProvider,
     testingApiPrototype,
     codeLensRegistration,
+    mainCodeLensRegistration,
     documentChangeSubscription,
     documentSaveSubscription,
     configurationSubscription

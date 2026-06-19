@@ -758,11 +758,11 @@ async function resolveMainFunctionTarget(
 async function findMainFunctionInFile(uri: vscode.Uri): Promise<{ uri: vscode.Uri; selection: vscode.Range } | undefined> {
   try {
     const document = await vscode.workspace.openTextDocument(uri);
-    const match = /^\s*func\s+main\s*\(/m.exec(document.getText());
+    const match = /^([ \t]*)func\s+main\s*\(/m.exec(document.getText());
     if (!match) {
       return undefined;
     }
-    const position = document.positionAt(match.index);
+    const position = document.positionAt(match.index + (match[1]?.length ?? 0));
     return {
       uri,
       selection: new vscode.Range(position, position)

@@ -16,6 +16,8 @@
 - runnable 节点的打开动作统一命名为 Open File，并作为每个项目的 inline action 展示。
 - Open File 会定位到 `func main`，package 目录目标会在目录内寻找包含 main 函数的 Go 文件。
 - 运行中的 runnable 支持 stop/restart；group 支持批量 stop/restart。
+- runnable 节点新增 inline remove 按钮，用户不用打开右键菜单也能移除项目。
+- 普通 Go 文件中静态识别到 `package main` 和 `func main(...)` 时，会在 main 函数上显示 Run Main / Debug Main CodeLens。
 - 运行使用 VSCode terminal，并写出 `go run` 命令；Go 文件执行 `go run <file>`，Go package 执行 `go run .`。
 - 调试使用官方 Go debug adapter 兼容配置：`type: "go"`、`request: "launch"`、`mode: "debug"`。
 - Go 文件添加时会检查 `package main`；非 `package main` 允许用户确认后继续添加。
@@ -26,6 +28,8 @@
 - `src/runnablesModel.ts`：runnable 纯数据模型、持久化路径转换、去重、编辑、`go run` 命令和 debug 配置构造。
 - `src/runnablesModel.ts`：补充分组、树形投影、package 解析和可执行 Go 文件识别。
 - `src/runnables.ts`：Run and Debug tree provider、workspace settings 读写、扫描、分组、命令注册、terminal/debug 启动。
+- `src/mainCodeLens.ts`：普通 Go 文件 main 函数 CodeLens provider。
+- `src/mainCodeLensTargets.ts`：main 函数 CodeLens 目标生成和 range 定位。
 - `src/sidebar.ts`：将 Run and Debug 视图接入 `GoBenchRunnablesProvider`。
 - `src/constants.ts`：新增 runnable 命令和配置键。
 - `package.json`：贡献 Run and Debug 标题区操作、runnable 节点菜单、Files 视图添加入口和配置项。
@@ -46,6 +50,8 @@
 - 在 Run and Debug runnable 节点右键选择归档到 group 或移回根层级。
 - 在 Run and Debug group 节点上点击 run 图标，批量运行组内所有 runnable。
 - 在 Run and Debug runnable 或 group 节点上点击 stop/restart 图标，停止或重启运行中的 terminal。
+- 在 Run and Debug runnable 节点点击 inline remove 图标，移除列表项但不删除真实文件。
+- 在普通 Go 文件的 `func main` 上点击 Run Main / Debug Main CodeLens。
 - 在 Run and Debug runnable 节点右键执行编辑、删除、打开目标和复制路径。
 - 运行目标会保存到 workspace settings，重启插件后仍可恢复。
 
@@ -58,7 +64,7 @@ npm run lint
 
 本次验证结果：
 
-- `npm test`：通过，73 个测试全部成功。
+- `npm test`：通过，76 个测试全部成功。
 - `npm run lint`：通过。
 
 ## 手动验证建议
@@ -74,6 +80,7 @@ npm run lint
 - 点击 scan 按钮，确认只出现 `package main` 且声明 `func main(...)` 的非 `_test.go` Go 文件，并能批量加入列表。
 - 点击 Open File，确认编辑器跳转到 `func main` 所在位置。
 - 运行项目后点击 Stop，确认对应 terminal 被关闭；点击 Restart，确认 terminal 关闭后重新运行。
+- 打开包含 `package main` 和 `func main` 的普通 Go 文件，确认 main 函数上显示 Run Main / Debug Main CodeLens。
 
 ## 已知边界
 

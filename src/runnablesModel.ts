@@ -305,7 +305,7 @@ export function parseGoPackageName(source: string): string | undefined {
 
 /** 判断 Go 文件是否是可执行入口；扫描只收录 `package main` 且声明 `func main(...)` 的文件。 */
 export function isExecutableGoFileContent(source: string): boolean {
-  return parseGoPackageName(source) === 'main' && /^\s*func\s+main\s*\(/m.test(source);
+  return parseGoPackageName(source) === 'main' && /^[ \t]*func\s+main\s*\(/m.test(source);
 }
 
 /** 为 terminal 展示和执行构造 `go run` 命令文本。 */
