@@ -45,6 +45,15 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.revealSidebarFile, 'goBench.sidebar.files.reveal');
     assert.equal(commands.copySidebarRelativePath, 'goBench.sidebar.files.copyRelativePath');
     assert.equal(commands.copySidebarAbsolutePath, 'goBench.sidebar.files.copyAbsolutePath');
+    assert.equal(commands.addCurrentRunnableFile, 'goBench.runnables.addCurrentFile');
+    assert.equal(commands.addRunnableFile, 'goBench.runnables.addFile');
+    assert.equal(commands.addRunnablePackage, 'goBench.runnables.addPackage');
+    assert.equal(commands.removeRunnable, 'goBench.runnables.remove');
+    assert.equal(commands.editRunnable, 'goBench.runnables.edit');
+    assert.equal(commands.runRunnable, 'goBench.runnables.run');
+    assert.equal(commands.debugRunnable, 'goBench.runnables.debug');
+    assert.equal(commands.revealRunnable, 'goBench.runnables.reveal');
+    assert.equal(commands.copyRunnablePath, 'goBench.runnables.copyPath');
   });
 
   it('defines stable Go Bench sidebar view ids', () => {
@@ -87,7 +96,9 @@ describe('extension skeleton constants', () => {
       enabled: true,
       filesEnabled: true,
       testsEnabled: true,
-      runnablesEnabled: true
+      runnablesEnabled: true,
+      runnableItems: [],
+      runnablesDefaultRunInTerminal: true
     });
   });
 
@@ -102,7 +113,9 @@ describe('extension skeleton constants', () => {
       'goBench.sidebar.enabled',
       'goBench.sidebar.files.enabled',
       'goBench.sidebar.tests.enabled',
-      'goBench.sidebar.runnables.enabled'
+      'goBench.sidebar.runnables.enabled',
+      'goBench.runnables.items',
+      'goBench.runnables.defaultRunInTerminal'
     ]);
   });
 });

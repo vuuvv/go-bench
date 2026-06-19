@@ -183,6 +183,50 @@ describe('VSCode extension manifest', () => {
       {
         command: commands.copySidebarAbsolutePath,
         title: 'Copy Absolute Path'
+      },
+      {
+        command: commands.addCurrentRunnableFile,
+        title: 'Go Bench: Add Current File to Run and Debug',
+        icon: '$(add)'
+      },
+      {
+        command: commands.addRunnableFile,
+        title: 'Go Bench: Add File to Run and Debug',
+        icon: '$(go-to-file)'
+      },
+      {
+        command: commands.addRunnablePackage,
+        title: 'Go Bench: Add Package to Run and Debug',
+        icon: '$(package)'
+      },
+      {
+        command: commands.removeRunnable,
+        title: 'Remove',
+        icon: '$(trash)'
+      },
+      {
+        command: commands.editRunnable,
+        title: 'Edit',
+        icon: '$(edit)'
+      },
+      {
+        command: commands.runRunnable,
+        title: 'Run',
+        icon: '$(play)'
+      },
+      {
+        command: commands.debugRunnable,
+        title: 'Debug',
+        icon: '$(debug-alt)'
+      },
+      {
+        command: commands.revealRunnable,
+        title: 'Open Target',
+        icon: '$(go-to-file)'
+      },
+      {
+        command: commands.copyRunnablePath,
+        title: 'Copy Path'
       }
     ]);
   });
@@ -243,7 +287,7 @@ describe('VSCode extension manifest', () => {
     const menuGroups = Object.values(manifest.contributes.menus ?? {});
     for (const menuItems of menuGroups) {
       for (const menuItem of menuItems) {
-        if (!menuItem.command.startsWith('goBench.sidebar')) {
+        if (!menuItem.command.startsWith('goBench.sidebar') && !menuItem.command.startsWith('goBench.runnables')) {
           continue;
         }
 
@@ -284,6 +328,21 @@ describe('VSCode extension manifest', () => {
         command: commands.revealCurrentSidebarTest,
         when: `view == ${sidebarViewIds.tests}`,
         group: 'navigation@1'
+      },
+      {
+        command: commands.addCurrentRunnableFile,
+        when: `view == ${sidebarViewIds.runAndDebug}`,
+        group: 'navigation@0'
+      },
+      {
+        command: commands.addRunnableFile,
+        when: `view == ${sidebarViewIds.runAndDebug}`,
+        group: 'navigation@1'
+      },
+      {
+        command: commands.addRunnablePackage,
+        when: `view == ${sidebarViewIds.runAndDebug}`,
+        group: 'navigation@2'
       },
       {
         command: commands.toggleTestTreeModeFromGoBench,
@@ -379,6 +438,46 @@ describe('VSCode extension manifest', () => {
         command: commands.copySidebarAbsolutePath,
         when: `view == ${sidebarViewIds.files}`,
         group: '6_copy@1'
+      },
+      {
+        command: commands.runRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        group: 'inline@0'
+      },
+      {
+        command: commands.debugRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        group: 'inline@1'
+      },
+      {
+        command: commands.revealRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        group: 'navigation@0'
+      },
+      {
+        command: commands.editRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        group: 'navigation@1'
+      },
+      {
+        command: commands.removeRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        group: 'navigation@2'
+      },
+      {
+        command: commands.copyRunnablePath,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        group: 'navigation@3'
+      },
+      {
+        command: commands.addRunnableFile,
+        when: `view == ${sidebarViewIds.files} && viewItem == goBenchFile`,
+        group: '7_runnables@0'
+      },
+      {
+        command: commands.addRunnablePackage,
+        when: `view == ${sidebarViewIds.files} && (viewItem == goBenchFolder || viewItem == goBenchWorkspaceFolder)`,
+        group: '7_runnables@1'
       }
     ]);
   });
@@ -402,5 +501,10 @@ describe('VSCode extension manifest', () => {
     assert.equal(properties[configurationKeys.sidebarFilesEnabled].default, defaultSidebarConfig.filesEnabled);
     assert.equal(properties[configurationKeys.sidebarTestsEnabled].default, defaultSidebarConfig.testsEnabled);
     assert.equal(properties[configurationKeys.sidebarRunnablesEnabled].default, defaultSidebarConfig.runnablesEnabled);
+    assert.deepEqual(properties[configurationKeys.runnableItems].default, defaultSidebarConfig.runnableItems);
+    assert.equal(
+      properties[configurationKeys.runnablesDefaultRunInTerminal].default,
+      defaultSidebarConfig.runnablesDefaultRunInTerminal
+    );
   });
 });

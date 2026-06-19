@@ -58,7 +58,25 @@ export const commands = {
   /** 复制 Go Bench Files 视图中目标相对 workspace 的路径。 */
   copySidebarRelativePath: 'goBench.sidebar.files.copyRelativePath',
   /** 复制 Go Bench Files 视图中目标绝对路径。 */
-  copySidebarAbsolutePath: 'goBench.sidebar.files.copyAbsolutePath'
+  copySidebarAbsolutePath: 'goBench.sidebar.files.copyAbsolutePath',
+  /** 将当前编辑器文件添加到 Go Bench Run and Debug 列表。 */
+  addCurrentRunnableFile: 'goBench.runnables.addCurrentFile',
+  /** 通过文件选择器添加 Go 文件运行目标。 */
+  addRunnableFile: 'goBench.runnables.addFile',
+  /** 通过目录选择器添加 Go package 运行目标。 */
+  addRunnablePackage: 'goBench.runnables.addPackage',
+  /** 从 Go Bench Run and Debug 列表移除运行目标。 */
+  removeRunnable: 'goBench.runnables.remove',
+  /** 编辑 Go Bench Run and Debug 列表中的运行目标。 */
+  editRunnable: 'goBench.runnables.edit',
+  /** 在 terminal 中运行 Go Bench runnable。 */
+  runRunnable: 'goBench.runnables.run',
+  /** 使用官方 Go debug adapter 调试 Go Bench runnable。 */
+  debugRunnable: 'goBench.runnables.debug',
+  /** 打开 Go Bench runnable 对应的文件或目录。 */
+  revealRunnable: 'goBench.runnables.reveal',
+  /** 复制 Go Bench runnable 的绝对路径。 */
+  copyRunnablePath: 'goBench.runnables.copyPath'
 } as const;
 
 /** Go Bench 侧边栏贡献的 view container 和 view ID。 */
@@ -105,7 +123,11 @@ export const configurationKeys = {
   /** 是否启用 Go Bench 侧边栏 Tests 视图。 */
   sidebarTestsEnabled: 'goBench.sidebar.tests.enabled',
   /** 是否启用 Go Bench 侧边栏 Run and Debug 视图。 */
-  sidebarRunnablesEnabled: 'goBench.sidebar.runnables.enabled'
+  sidebarRunnablesEnabled: 'goBench.sidebar.runnables.enabled',
+  /** workspace 级持久化的 Run and Debug runnable 列表。 */
+  runnableItems: 'goBench.runnables.items',
+  /** runnable 是否默认在 VSCode terminal 中执行。 */
+  runnablesDefaultRunInTerminal: 'goBench.runnables.defaultRunInTerminal'
 } as const;
 
 /** 官方 Go 扩展的 Test Explorer 开关，用于和 Go Bench 测试树互斥显示。 */
@@ -126,5 +148,7 @@ export const defaultSidebarConfig = {
   enabled: true,
   filesEnabled: true,
   testsEnabled: true,
-  runnablesEnabled: true
+  runnablesEnabled: true,
+  runnableItems: [],
+  runnablesDefaultRunInTerminal: true
 } as const;

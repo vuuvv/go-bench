@@ -2,12 +2,13 @@
  * Go Bench 侧边栏骨架。
  *
  * 当前 Files 视图已经接入 workspace 文件树，Tests 视图复用 Go Bench 测试树模型；
- * Run and Debug 仍保留空 tree view，等待后续里程碑挂载 runnable 列表。
+ * Run and Debug 视图接入 workspace 级持久化 runnable 列表。
  */
 
 import * as vscode from 'vscode';
 import { sidebarViewIds } from './constants';
 import { GoBenchFileExplorerProvider, registerGoBenchFileExplorer } from './fileExplorer';
+import { GoBenchRunnablesProvider, registerGoBenchRunnables } from './runnables';
 import type { GoBenchRunTargetTestResultTree, GoBenchRunTargetTestResultsOptions } from './testResults';
 import type { GoTestRunResult, GoTestRunTarget } from './runner';
 import { GoBenchSidebarTestsProvider, registerGoBenchSidebarTests } from './sidebarTests';
@@ -22,7 +23,7 @@ export function registerGoBenchSidebar(options: {
 }): vscode.Disposable {
   const filesProvider = new GoBenchFileExplorerProvider();
   const testsProvider = new GoBenchSidebarTestsProvider({ output: options.output });
-  const runAndDebugProvider = new EmptySidebarTreeDataProvider();
+  const runAndDebugProvider = new GoBenchRunnablesProvider();
 
   const filesView = vscode.window.createTreeView(sidebarViewIds.files, {
     treeDataProvider: filesProvider,
@@ -47,6 +48,10 @@ export function registerGoBenchSidebar(options: {
     runTestTree: options.runTestTree,
     debugTest: options.debugTest
   });
+  const runnablesRegistration = registerGoBenchRunnables({
+    provider: runAndDebugProvider,
+    output: options.output
+  });
 
   return vscode.Disposable.from(
     filesProvider,
@@ -56,28 +61,7 @@ export function registerGoBenchSidebar(options: {
     testsView,
     runAndDebugView,
     fileExplorerRegistration,
-    testsRegistration
+    testsRegistration,
+    runnablesRegistration
   );
-}
-
-class EmptySidebarTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeItem>, vscode.Disposable {
-  private readonly treeDataDidChangeEmitter = new vscode.EventEmitter<vscode.TreeItem | undefined | null | void>();
-
-  public readonly onDidChangeTreeData = this.treeDataDidChangeEmitter.event;
-
-  public refresh(): void {
-    this.treeDataDidChangeEmitter.fire();
-  }
-
-  public getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
-    return element;
-  }
-
-  public getChildren(): vscode.ProviderResult<vscode.TreeItem[]> {
-    return [];
-  }
-
-  public dispose(): void {
-    this.treeDataDidChangeEmitter.dispose();
-  }
 }
