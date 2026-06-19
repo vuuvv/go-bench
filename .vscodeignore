@@ -7,8 +7,8 @@ docs/**
 .gitignore
 package-lock.json
 *.vsix
+media/icon-source.png
 out/test/**
 **/*.map
 tsconfig.json
 eslint.config.mjs
-icon-source.png
