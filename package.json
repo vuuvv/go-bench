@@ -197,6 +197,16 @@
         "icon": "$(play)"
       },
       {
+        "command": "goBench.runnables.stopGroup",
+        "title": "Stop Group",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "goBench.runnables.restartGroup",
+        "title": "Restart Group",
+        "icon": "$(debug-restart)"
+      },
+      {
         "command": "goBench.runnables.removeGroup",
         "title": "Remove Group",
         "icon": "$(trash)"
@@ -215,6 +225,16 @@
         "command": "goBench.runnables.run",
         "title": "Run",
         "icon": "$(play)"
+      },
+      {
+        "command": "goBench.runnables.stop",
+        "title": "Stop",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "goBench.runnables.restart",
+        "title": "Restart",
+        "icon": "$(debug-restart)"
       },
       {
         "command": "goBench.runnables.debug",
@@ -417,14 +437,34 @@
           "group": "inline@1"
         },
         {
-          "command": "goBench.runnables.reveal",
+          "command": "goBench.runnables.stop",
           "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
           "group": "inline@2"
+        },
+        {
+          "command": "goBench.runnables.restart",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "group": "inline@3"
+        },
+        {
+          "command": "goBench.runnables.reveal",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "group": "inline@4"
         },
         {
           "command": "goBench.runnables.runGroup",
           "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroup",
           "group": "inline@0"
+        },
+        {
+          "command": "goBench.runnables.stopGroup",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroup",
+          "group": "inline@1"
+        },
+        {
+          "command": "goBench.runnables.restartGroup",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroup",
+          "group": "inline@2"
         },
         {
           "command": "goBench.runnables.edit",

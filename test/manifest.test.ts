@@ -220,6 +220,16 @@ describe('VSCode extension manifest', () => {
         icon: '$(play)'
       },
       {
+        command: commands.stopRunnableGroup,
+        title: 'Stop Group',
+        icon: '$(debug-stop)'
+      },
+      {
+        command: commands.restartRunnableGroup,
+        title: 'Restart Group',
+        icon: '$(debug-restart)'
+      },
+      {
         command: commands.removeRunnableGroup,
         title: 'Remove Group',
         icon: '$(trash)'
@@ -238,6 +248,16 @@ describe('VSCode extension manifest', () => {
         command: commands.runRunnable,
         title: 'Run',
         icon: '$(play)'
+      },
+      {
+        command: commands.stopRunnable,
+        title: 'Stop',
+        icon: '$(debug-stop)'
+      },
+      {
+        command: commands.restartRunnable,
+        title: 'Restart',
+        icon: '$(debug-restart)'
       },
       {
         command: commands.debugRunnable,
@@ -485,14 +505,34 @@ describe('VSCode extension manifest', () => {
         group: 'inline@1'
       },
       {
-        command: commands.revealRunnable,
+        command: commands.stopRunnable,
         when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
         group: 'inline@2'
+      },
+      {
+        command: commands.restartRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        group: 'inline@3'
+      },
+      {
+        command: commands.revealRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        group: 'inline@4'
       },
       {
         command: commands.runRunnableGroup,
         when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroup`,
         group: 'inline@0'
+      },
+      {
+        command: commands.stopRunnableGroup,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroup`,
+        group: 'inline@1'
+      },
+      {
+        command: commands.restartRunnableGroup,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroup`,
+        group: 'inline@2'
       },
       {
         command: commands.editRunnable,

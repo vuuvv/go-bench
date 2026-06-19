@@ -221,7 +221,8 @@ Go Bench
 
 - 根层级展示用户创建的 group 和未分组 runnable。
 - group 节点展开后展示组内 runnable。
-- runnable 节点必须显示目标 package，例如 `package main`。
+- runnable 节点名称默认使用 `module name + "/" + package path`，如果最终段为 `main` 可以省略该段。
+- runnable 节点必须显示目标 package，例如 `package main`，作为名称之外的辅助信息。
 - 既有未分组项目必须保持可见，不能因为引入 group 而丢失。
 
 第一阶段推荐优先支持：
@@ -314,6 +315,9 @@ go run .
 - 运行前清晰展示实际执行命令。
 - 支持传入用户配置的 args 和 env。
 - 命令失败时保留 terminal 输出。
+- 对正在运行的 runnable 必须支持停止当前 terminal。
+- 对正在运行的 runnable 必须支持重启；重启行为为先停止当前 terminal，再重新执行 run。
+- group 必须支持批量停止和批量重启组内 runnable。
 
 #### 8.3.6 调试列表项
 
@@ -359,10 +363,14 @@ go run .
   "goBench.runnables.createGroup": "Go Bench: Create Runnable Group",
   "goBench.runnables.moveToGroup": "Go Bench: Archive Runnable to Group",
   "goBench.runnables.runGroup": "Go Bench: Run Runnable Group",
+  "goBench.runnables.stopGroup": "Go Bench: Stop Runnable Group",
+  "goBench.runnables.restartGroup": "Go Bench: Restart Runnable Group",
   "goBench.runnables.removeGroup": "Go Bench: Remove Runnable Group",
   "goBench.runnables.remove": "Go Bench: Remove Runnable",
   "goBench.runnables.edit": "Go Bench: Edit Runnable",
   "goBench.runnables.run": "Go Bench: Run Runnable",
+  "goBench.runnables.stop": "Go Bench: Stop Runnable",
+  "goBench.runnables.restart": "Go Bench: Restart Runnable",
   "goBench.runnables.debug": "Go Bench: Debug Runnable",
   "goBench.runnables.reveal": "Go Bench: Open Runnable File"
 }
@@ -439,6 +447,8 @@ go run .
 
 - 打开文件。
 - 运行。
+- 停止。
+- 重启。
 - 调试。
 - 编辑。
 - 归档到 group。
@@ -449,6 +459,8 @@ go run .
 
 - 展开/折叠。
 - 批量运行组内所有项目。
+- 批量停止组内所有运行中项目。
+- 批量重启组内项目。
 - 删除 group，并保留组内项目。
 
 ### 10.3 图标和按钮
@@ -458,6 +470,8 @@ go run .
 - refresh 使用 `refresh`。
 - add 使用 `add`。
 - scan 使用 `search`。
+- stop 使用 `debug-stop`。
+- restart 使用 `debug-restart`。
 - remove 使用 `trash`。
 - edit 使用 `edit`。
 - reveal 使用 `go-to-file` 或 `folder-opened`。

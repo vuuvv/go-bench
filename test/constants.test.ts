@@ -52,10 +52,14 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.createRunnableGroup, 'goBench.runnables.createGroup');
     assert.equal(commands.moveRunnableToGroup, 'goBench.runnables.moveToGroup');
     assert.equal(commands.runRunnableGroup, 'goBench.runnables.runGroup');
+    assert.equal(commands.stopRunnableGroup, 'goBench.runnables.stopGroup');
+    assert.equal(commands.restartRunnableGroup, 'goBench.runnables.restartGroup');
     assert.equal(commands.removeRunnableGroup, 'goBench.runnables.removeGroup');
     assert.equal(commands.removeRunnable, 'goBench.runnables.remove');
     assert.equal(commands.editRunnable, 'goBench.runnables.edit');
     assert.equal(commands.runRunnable, 'goBench.runnables.run');
+    assert.equal(commands.stopRunnable, 'goBench.runnables.stop');
+    assert.equal(commands.restartRunnable, 'goBench.runnables.restart');
     assert.equal(commands.debugRunnable, 'goBench.runnables.debug');
     assert.equal(commands.revealRunnable, 'goBench.runnables.reveal');
     assert.equal(commands.copyRunnablePath, 'goBench.runnables.copyPath');

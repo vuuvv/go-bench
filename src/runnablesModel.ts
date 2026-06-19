@@ -74,6 +74,8 @@ export type RunnableTargetInput = {
   path: string;
   workspaceFolder: RunnableWorkspaceFolder;
   label?: string;
+  moduleName?: string;
+  packageImportPath?: string;
   packageName?: string;
   groupId?: string;
   args?: string[];
@@ -146,7 +148,11 @@ export function createRunnableItem(input: RunnableTargetInput): GoBenchRunnableI
       kind: input.kind,
       uri: persistedUri
     }),
-    label: input.label ?? basename(input.path),
+    label: input.label ?? buildRunnableDisplayLabel({
+      moduleName: input.moduleName,
+      packageImportPath: input.packageImportPath,
+      fallback: basename(input.path)
+    }),
     uri: persistedUri,
     workspaceFolder: input.workspaceFolder.name,
     kind: input.kind,
@@ -159,6 +165,27 @@ export function createRunnableItem(input: RunnableTargetInput): GoBenchRunnableI
     updatedAt: now
   };
   return item;
+}
+
+/** 按产品要求生成列表项名称：module name + "/" + package path，末尾 `/main` 可省略。 */
+export function buildRunnableDisplayLabel(input: {
+  moduleName?: string;
+  packageImportPath?: string;
+  fallback: string;
+}): string {
+  if (!input.moduleName) {
+    return input.fallback;
+  }
+
+  const packageImportPath = trimSlashes(input.packageImportPath ?? '');
+  if (packageImportPath === '' || packageImportPath === 'main') {
+    return input.moduleName;
+  }
+
+  const withoutTrailingMain = packageImportPath.endsWith('/main')
+    ? packageImportPath.slice(0, -'/main'.length)
+    : packageImportPath;
+  return withoutTrailingMain === '' ? input.moduleName : `${input.moduleName}/${withoutTrailingMain}`;
 }
 
 /** 添加 runnable；重复目标会保留 createdAt 并更新 label/args/env/cwd。 */
@@ -368,4 +395,8 @@ function slugify(value: string): string {
     .replace(/[^a-z0-9_-]+/g, '-')
     .replace(/^-+|-+$/g, '');
   return slug || 'group';
+}
+
+function trimSlashes(value: string): string {
+  return value.replace(/^\/+|\/+$/g, '');
 }

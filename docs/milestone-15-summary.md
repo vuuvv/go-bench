@@ -12,7 +12,10 @@
 - group 节点支持批量运行组内所有 runnable；删除 group 只移除分组，组内项目会回到根层级。
 - 新增扫描按钮，可扫描 workspace 中所有静态 `package main` 且声明 `func main(...)` 的非测试 Go 文件，并通过多选列表批量加入。
 - runnable 节点显示 package 名称，便于用户区分同名 `main.go`。
+- runnable 默认名称改为 `module name + "/" + package path`，尾部 `/main` 会省略。
 - runnable 节点的打开动作统一命名为 Open File，并作为每个项目的 inline action 展示。
+- Open File 会定位到 `func main`，package 目录目标会在目录内寻找包含 main 函数的 Go 文件。
+- 运行中的 runnable 支持 stop/restart；group 支持批量 stop/restart。
 - 运行使用 VSCode terminal，并写出 `go run` 命令；Go 文件执行 `go run <file>`，Go package 执行 `go run .`。
 - 调试使用官方 Go debug adapter 兼容配置：`type: "go"`、`request: "launch"`、`mode: "debug"`。
 - Go 文件添加时会检查 `package main`；非 `package main` 允许用户确认后继续添加。
@@ -42,6 +45,7 @@
 - 在 Run and Debug 标题区创建 group。
 - 在 Run and Debug runnable 节点右键选择归档到 group 或移回根层级。
 - 在 Run and Debug group 节点上点击 run 图标，批量运行组内所有 runnable。
+- 在 Run and Debug runnable 或 group 节点上点击 stop/restart 图标，停止或重启运行中的 terminal。
 - 在 Run and Debug runnable 节点右键执行编辑、删除、打开目标和复制路径。
 - 运行目标会保存到 workspace settings，重启插件后仍可恢复。
 
@@ -54,7 +58,7 @@ npm run lint
 
 本次验证结果：
 
-- `npm test`：通过，72 个测试全部成功。
+- `npm test`：通过，73 个测试全部成功。
 - `npm run lint`：通过。
 
 ## 手动验证建议
@@ -68,6 +72,8 @@ npm run lint
 - 重载 Extension Development Host，确认 runnable 列表仍存在。
 - 创建 group，将一个 runnable 归档进去，确认树形结构可展开且 group run 会依次启动组内项目。
 - 点击 scan 按钮，确认只出现 `package main` 且声明 `func main(...)` 的非 `_test.go` Go 文件，并能批量加入列表。
+- 点击 Open File，确认编辑器跳转到 `func main` 所在位置。
+- 运行项目后点击 Stop，确认对应 terminal 被关闭；点击 Restart，确认 terminal 关闭后重新运行。
 
 ## 已知边界
 

@@ -13,6 +13,7 @@ import {
   assignRunnableGroup,
   buildRunnableTreeRoots,
   buildGoRunCommand,
+  buildRunnableDisplayLabel,
   buildRunnableDebugConfiguration,
   createRunnableGroup,
   createRunnableItem,
@@ -64,6 +65,33 @@ describe('Go Bench runnable model', () => {
       createdAt: '2026-06-19T00:00:00.000Z',
       updatedAt: '2026-06-19T00:00:00.000Z'
     });
+  });
+
+  it('builds runnable display labels from module and package path', () => {
+    assert.equal(
+      buildRunnableDisplayLabel({
+        moduleName: 'example.com/repo',
+        packageImportPath: 'cmd/api',
+        fallback: 'main.go'
+      }),
+      'example.com/repo/cmd/api'
+    );
+    assert.equal(
+      buildRunnableDisplayLabel({
+        moduleName: 'example.com/repo',
+        packageImportPath: 'cmd/main',
+        fallback: 'main.go'
+      }),
+      'example.com/repo/cmd'
+    );
+    assert.equal(
+      buildRunnableDisplayLabel({
+        moduleName: 'example.com/repo',
+        packageImportPath: '',
+        fallback: 'main.go'
+      }),
+      'example.com/repo'
+    );
   });
 
   it('updates existing runnable targets instead of duplicating them', () => {
