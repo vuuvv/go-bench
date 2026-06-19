@@ -11,3 +11,4 @@ out/test/**
 **/*.map
 tsconfig.json
 eslint.config.mjs
+icon-source.png
