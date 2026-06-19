@@ -94,51 +94,90 @@ describe('VSCode extension manifest', () => {
       },
       {
         command: commands.refreshSidebarFiles,
-        title: 'Go Bench: Refresh Files',
+        title: 'Refresh',
         icon: '$(refresh)'
       },
       {
         command: commands.refreshSidebarTests,
-        title: 'Go Bench: Refresh Tests',
+        title: 'Refresh',
         icon: '$(refresh)'
       },
       {
+        command: commands.runSidebarTest,
+        title: 'Run Test',
+        icon: '$(run)'
+      },
+      {
+        command: commands.debugSidebarTest,
+        title: 'Debug Test',
+        icon: '$(debug-alt)'
+      },
+      {
         command: commands.openSidebarFile,
-        title: 'Go Bench: Open File',
+        title: 'Open',
         icon: '$(go-to-file)'
       },
       {
+        command: commands.openSidebarFileToSide,
+        title: 'Open to the Side',
+        icon: '$(split-horizontal)'
+      },
+      {
+        command: commands.openSidebarFileWith,
+        title: 'Open With...'
+      },
+      {
         command: commands.newSidebarFile,
-        title: 'Go Bench: New File',
+        title: 'New File',
         icon: '$(new-file)'
       },
       {
         command: commands.newSidebarFolder,
-        title: 'Go Bench: New Folder',
+        title: 'New Folder',
         icon: '$(new-folder)'
       },
       {
+        command: commands.cutSidebarFile,
+        title: 'Cut',
+        icon: '$(scissors)'
+      },
+      {
+        command: commands.copySidebarFile,
+        title: 'Copy',
+        icon: '$(copy)'
+      },
+      {
+        command: commands.pasteSidebarFile,
+        title: 'Paste',
+        icon: '$(clippy)'
+      },
+      {
         command: commands.renameSidebarFile,
-        title: 'Go Bench: Rename',
+        title: 'Rename',
         icon: '$(edit)'
       },
       {
         command: commands.deleteSidebarFile,
-        title: 'Go Bench: Delete',
+        title: 'Delete',
         icon: '$(trash)'
       },
       {
+        command: commands.findInSidebarFolder,
+        title: 'Find in Folder...',
+        icon: '$(search)'
+      },
+      {
         command: commands.revealSidebarFile,
-        title: 'Go Bench: Reveal in OS',
+        title: 'Reveal in OS',
         icon: '$(folder-opened)'
       },
       {
         command: commands.copySidebarRelativePath,
-        title: 'Go Bench: Copy Relative Path'
+        title: 'Copy Relative Path'
       },
       {
         command: commands.copySidebarAbsolutePath,
-        title: 'Go Bench: Copy Absolute Path'
+        title: 'Copy Absolute Path'
       }
     ]);
   });
@@ -148,7 +187,7 @@ describe('VSCode extension manifest', () => {
       {
         id: sidebarViewIds.container,
         title: 'Go Bench',
-        icon: 'media/icon.png'
+        icon: 'media/activitybar-icon.svg'
       }
     ]);
 
@@ -174,6 +213,13 @@ describe('VSCode extension manifest', () => {
     ]);
   });
 
+  it('uses a VSCode-valid Activity Bar container id', () => {
+    const activityBarContainers = manifest.contributes.viewsContainers?.activitybar ?? [];
+    for (const container of activityBarContainers) {
+      assert.match(container.id, /^[A-Za-z0-9_-]+$/);
+    }
+  });
+
   it('keeps Go Bench sidebar views out of the built-in Explorer container', () => {
     assert.equal(manifest.contributes.views?.explorer, undefined);
 
@@ -196,7 +242,11 @@ describe('VSCode extension manifest', () => {
           continue;
         }
 
-        assert.ok(menuItem.when?.includes(sidebarViewIds.container));
+        assert.ok(
+          menuItem.when?.includes(sidebarViewIds.files) ||
+            menuItem.when?.includes(sidebarViewIds.tests) ||
+            menuItem.when?.includes(sidebarViewIds.runAndDebug)
+        );
         assert.equal(menuItem.when?.includes('explorer'), false);
         assert.equal(menuItem.when?.includes('workbench.explorer'), false);
       }
@@ -241,44 +291,84 @@ describe('VSCode extension manifest', () => {
   it('contributes Files view item context actions', () => {
     assert.deepEqual(manifest.contributes.menus?.['view/item/context'], [
       {
+        command: commands.runSidebarTest,
+        when: `view == ${sidebarViewIds.tests} && viewItem == goBenchTestRunnable`,
+        group: 'navigation@0'
+      },
+      {
+        command: commands.debugSidebarTest,
+        when: `view == ${sidebarViewIds.tests} && viewItem == goBenchTestRunnable`,
+        group: 'navigation@1'
+      },
+      {
         command: commands.openSidebarFile,
         when: `view == ${sidebarViewIds.files} && viewItem == goBenchFile`,
-        group: 'inline@0'
+        group: 'navigation@0'
+      },
+      {
+        command: commands.openSidebarFileToSide,
+        when: `view == ${sidebarViewIds.files} && viewItem == goBenchFile`,
+        group: 'navigation@1'
+      },
+      {
+        command: commands.openSidebarFileWith,
+        when: `view == ${sidebarViewIds.files} && viewItem == goBenchFile`,
+        group: 'navigation@2'
       },
       {
         command: commands.newSidebarFile,
         when: `view == ${sidebarViewIds.files} && (viewItem == goBenchFolder || viewItem == goBenchWorkspaceFolder)`,
-        group: 'inline@1'
+        group: '2_workspace@0'
       },
       {
         command: commands.newSidebarFolder,
         when: `view == ${sidebarViewIds.files} && (viewItem == goBenchFolder || viewItem == goBenchWorkspaceFolder)`,
-        group: 'inline@2'
+        group: '2_workspace@1'
+      },
+      {
+        command: commands.cutSidebarFile,
+        when: `view == ${sidebarViewIds.files} && (viewItem == goBenchFile || viewItem == goBenchFolder)`,
+        group: '3_edit@0'
+      },
+      {
+        command: commands.copySidebarFile,
+        when: `view == ${sidebarViewIds.files} && (viewItem == goBenchFile || viewItem == goBenchFolder)`,
+        group: '3_edit@1'
+      },
+      {
+        command: commands.pasteSidebarFile,
+        when: `view == ${sidebarViewIds.files} && (viewItem == goBenchFolder || viewItem == goBenchWorkspaceFolder)`,
+        group: '3_edit@2'
       },
       {
         command: commands.renameSidebarFile,
         when: `view == ${sidebarViewIds.files} && (viewItem == goBenchFile || viewItem == goBenchFolder)`,
-        group: 'inline@3'
+        group: '3_edit@3'
       },
       {
         command: commands.deleteSidebarFile,
         when: `view == ${sidebarViewIds.files} && (viewItem == goBenchFile || viewItem == goBenchFolder)`,
-        group: 'inline@4'
+        group: '3_edit@4'
+      },
+      {
+        command: commands.findInSidebarFolder,
+        when: `view == ${sidebarViewIds.files}`,
+        group: '4_search@0'
       },
       {
         command: commands.revealSidebarFile,
         when: `view == ${sidebarViewIds.files}`,
-        group: 'navigation'
+        group: '5_reveal@0'
       },
       {
         command: commands.copySidebarRelativePath,
         when: `view == ${sidebarViewIds.files}`,
-        group: 'navigation@1'
+        group: '6_copy@0'
       },
       {
         command: commands.copySidebarAbsolutePath,
         when: `view == ${sidebarViewIds.files}`,
-        group: 'navigation@2'
+        group: '6_copy@1'
       }
     ]);
   });

@@ -71,64 +71,103 @@
       },
       {
         "command": "goBench.sidebar.refreshFiles",
-        "title": "Go Bench: Refresh Files",
+        "title": "Refresh",
         "icon": "$(refresh)"
       },
       {
         "command": "goBench.sidebar.refreshTests",
-        "title": "Go Bench: Refresh Tests",
+        "title": "Refresh",
         "icon": "$(refresh)"
       },
       {
+        "command": "goBench.sidebar.tests.run",
+        "title": "Run Test",
+        "icon": "$(run)"
+      },
+      {
+        "command": "goBench.sidebar.tests.debug",
+        "title": "Debug Test",
+        "icon": "$(debug-alt)"
+      },
+      {
         "command": "goBench.sidebar.files.open",
-        "title": "Go Bench: Open File",
+        "title": "Open",
         "icon": "$(go-to-file)"
       },
       {
+        "command": "goBench.sidebar.files.openToSide",
+        "title": "Open to the Side",
+        "icon": "$(split-horizontal)"
+      },
+      {
+        "command": "goBench.sidebar.files.openWith",
+        "title": "Open With..."
+      },
+      {
         "command": "goBench.sidebar.files.newFile",
-        "title": "Go Bench: New File",
+        "title": "New File",
         "icon": "$(new-file)"
       },
       {
         "command": "goBench.sidebar.files.newFolder",
-        "title": "Go Bench: New Folder",
+        "title": "New Folder",
         "icon": "$(new-folder)"
       },
       {
+        "command": "goBench.sidebar.files.cut",
+        "title": "Cut",
+        "icon": "$(scissors)"
+      },
+      {
+        "command": "goBench.sidebar.files.copy",
+        "title": "Copy",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "goBench.sidebar.files.paste",
+        "title": "Paste",
+        "icon": "$(clippy)"
+      },
+      {
         "command": "goBench.sidebar.files.rename",
-        "title": "Go Bench: Rename",
+        "title": "Rename",
         "icon": "$(edit)"
       },
       {
         "command": "goBench.sidebar.files.delete",
-        "title": "Go Bench: Delete",
+        "title": "Delete",
         "icon": "$(trash)"
       },
       {
+        "command": "goBench.sidebar.files.findInFolder",
+        "title": "Find in Folder...",
+        "icon": "$(search)"
+      },
+      {
         "command": "goBench.sidebar.files.reveal",
-        "title": "Go Bench: Reveal in OS",
+        "title": "Reveal in OS",
         "icon": "$(folder-opened)"
       },
       {
         "command": "goBench.sidebar.files.copyRelativePath",
-        "title": "Go Bench: Copy Relative Path"
+        "title": "Copy Relative Path"
       },
       {
         "command": "goBench.sidebar.files.copyAbsolutePath",
-        "title": "Go Bench: Copy Absolute Path"
+        "title": "Copy Absolute Path"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "goBench.sidebar",
+          "id": "go-bench-sidebar",
           "title": "Go Bench",
-          "icon": "media/icon.png"
+          "icon": "media/activitybar-icon.svg"
         }
       ]
     },
     "views": {
-      "goBench.sidebar": [
+      "go-bench-sidebar": [
         {
           "id": "goBench.sidebar.files",
           "name": "Files",
@@ -184,44 +223,84 @@
       ],
       "view/item/context": [
         {
+          "command": "goBench.sidebar.tests.run",
+          "when": "view == goBench.sidebar.tests && viewItem == goBenchTestRunnable",
+          "group": "navigation@0"
+        },
+        {
+          "command": "goBench.sidebar.tests.debug",
+          "when": "view == goBench.sidebar.tests && viewItem == goBenchTestRunnable",
+          "group": "navigation@1"
+        },
+        {
           "command": "goBench.sidebar.files.open",
           "when": "view == goBench.sidebar.files && viewItem == goBenchFile",
-          "group": "inline@0"
+          "group": "navigation@0"
+        },
+        {
+          "command": "goBench.sidebar.files.openToSide",
+          "when": "view == goBench.sidebar.files && viewItem == goBenchFile",
+          "group": "navigation@1"
+        },
+        {
+          "command": "goBench.sidebar.files.openWith",
+          "when": "view == goBench.sidebar.files && viewItem == goBenchFile",
+          "group": "navigation@2"
         },
         {
           "command": "goBench.sidebar.files.newFile",
           "when": "view == goBench.sidebar.files && (viewItem == goBenchFolder || viewItem == goBenchWorkspaceFolder)",
-          "group": "inline@1"
+          "group": "2_workspace@0"
         },
         {
           "command": "goBench.sidebar.files.newFolder",
           "when": "view == goBench.sidebar.files && (viewItem == goBenchFolder || viewItem == goBenchWorkspaceFolder)",
-          "group": "inline@2"
+          "group": "2_workspace@1"
+        },
+        {
+          "command": "goBench.sidebar.files.cut",
+          "when": "view == goBench.sidebar.files && (viewItem == goBenchFile || viewItem == goBenchFolder)",
+          "group": "3_edit@0"
+        },
+        {
+          "command": "goBench.sidebar.files.copy",
+          "when": "view == goBench.sidebar.files && (viewItem == goBenchFile || viewItem == goBenchFolder)",
+          "group": "3_edit@1"
+        },
+        {
+          "command": "goBench.sidebar.files.paste",
+          "when": "view == goBench.sidebar.files && (viewItem == goBenchFolder || viewItem == goBenchWorkspaceFolder)",
+          "group": "3_edit@2"
         },
         {
           "command": "goBench.sidebar.files.rename",
           "when": "view == goBench.sidebar.files && (viewItem == goBenchFile || viewItem == goBenchFolder)",
-          "group": "inline@3"
+          "group": "3_edit@3"
         },
         {
           "command": "goBench.sidebar.files.delete",
           "when": "view == goBench.sidebar.files && (viewItem == goBenchFile || viewItem == goBenchFolder)",
-          "group": "inline@4"
+          "group": "3_edit@4"
+        },
+        {
+          "command": "goBench.sidebar.files.findInFolder",
+          "when": "view == goBench.sidebar.files",
+          "group": "4_search@0"
         },
         {
           "command": "goBench.sidebar.files.reveal",
           "when": "view == goBench.sidebar.files",
-          "group": "navigation"
+          "group": "5_reveal@0"
         },
         {
           "command": "goBench.sidebar.files.copyRelativePath",
           "when": "view == goBench.sidebar.files",
-          "group": "navigation@1"
+          "group": "6_copy@0"
         },
         {
           "command": "goBench.sidebar.files.copyAbsolutePath",
           "when": "view == goBench.sidebar.files",
-          "group": "navigation@2"
+          "group": "6_copy@1"
         }
       ]
     },

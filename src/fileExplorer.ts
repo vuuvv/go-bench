@@ -1,7 +1,7 @@
 /**
  * Go Bench Files 侧边栏视图。
  *
- * 第一阶段实现和 VSCode Explorer 接近的核心工作流：workspace 根、懒加载目录、打开文件、
+ * 第一阶段实现和 VSCode Explorer 接近的核心工作流：隐藏 workspace 根、懒加载目录、打开文件、
  * 新建、重命名、删除、复制路径、在系统文件管理器显示，并通过文件系统 watcher 自动刷新。
  */
 
@@ -59,19 +59,26 @@ export class GoBenchFileExplorerProvider
 
   public async getChildren(node?: FileExplorerNode): Promise<FileExplorerNode[]> {
     if (!node) {
-      return (vscode.workspace.workspaceFolders ?? []).map(workspaceFolder => ({
-        kind: 'workspaceFolder',
-        uri: workspaceFolder.uri,
-        label: workspaceFolder.name,
-        workspaceFolder
-      }));
+      const workspaceChildren = await Promise.all(
+        (vscode.workspace.workspaceFolders ?? []).map(workspaceFolder =>
+          this.readDirectoryChildren(workspaceFolder.uri, workspaceFolder)
+        )
+      );
+      return sortFileExplorerNodes(workspaceChildren.flat());
     }
 
     if (node.kind === 'file') {
       return [];
     }
 
-    const entries = await vscode.workspace.fs.readDirectory(node.uri);
+    return await this.readDirectoryChildren(node.uri, node.workspaceFolder);
+  }
+
+  private async readDirectoryChildren(
+    uri: vscode.Uri,
+    workspaceFolder: vscode.WorkspaceFolder
+  ): Promise<FileExplorerNode[]> {
+    const entries = await vscode.workspace.fs.readDirectory(uri);
     return sortFileExplorerEntries(
       entries.map(([name, type]) => ({
         name,
@@ -79,9 +86,9 @@ export class GoBenchFileExplorerProvider
       }))
     ).map(entry => ({
       kind: entry.isDirectory ? 'directory' : 'file',
-      uri: vscode.Uri.joinPath(node.uri, entry.name),
+      uri: vscode.Uri.joinPath(uri, entry.name),
       label: entry.name,
-      workspaceFolder: node.workspaceFolder
+      workspaceFolder
     }));
   }
 
@@ -90,11 +97,38 @@ export class GoBenchFileExplorerProvider
   }
 }
 
+function sortFileExplorerNodes(nodes: FileExplorerNode[]): FileExplorerNode[] {
+  return [...nodes].sort((left, right) => {
+    if (left.kind !== right.kind) {
+      if (left.kind !== 'file') {
+        return -1;
+      }
+      if (right.kind !== 'file') {
+        return 1;
+      }
+    }
+
+    const nameComparison = left.label.localeCompare(right.label, undefined, {
+      sensitivity: 'base',
+      numeric: true
+    });
+    if (nameComparison !== 0) {
+      return nameComparison;
+    }
+
+    return left.workspaceFolder.name.localeCompare(right.workspaceFolder.name, undefined, {
+      sensitivity: 'base',
+      numeric: true
+    });
+  });
+}
+
 export function registerGoBenchFileExplorer(options: {
   provider: GoBenchFileExplorerProvider;
   output: vscode.OutputChannel;
 }): vscode.Disposable {
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  let fileClipboard: { node: FileExplorerNode; operation: 'copy' | 'cut' } | undefined;
 
   const scheduleRefresh = (): void => {
     if (refreshTimer) {
@@ -120,11 +154,56 @@ export function registerGoBenchFileExplorer(options: {
     }
     await vscode.window.showTextDocument(target.uri);
   });
+  const openFileToSideCommand = vscode.commands.registerCommand(
+    commands.openSidebarFileToSide,
+    async (node?: FileExplorerNode) => {
+      const target = node ?? await pickCurrentEditorNode();
+      if (!target || target.kind === 'directory' || target.kind === 'workspaceFolder') {
+        return;
+      }
+      await vscode.window.showTextDocument(target.uri, {
+        viewColumn: vscode.ViewColumn.Beside,
+        preview: false
+      });
+    }
+  );
+  const openFileWithCommand = vscode.commands.registerCommand(commands.openSidebarFileWith, async (node?: FileExplorerNode) => {
+    const target = node ?? await pickCurrentEditorNode();
+    if (!target || target.kind === 'directory' || target.kind === 'workspaceFolder') {
+      return;
+    }
+    await vscode.commands.executeCommand('vscode.openWith', target.uri);
+  });
   const newFileCommand = vscode.commands.registerCommand(commands.newSidebarFile, async (node?: FileExplorerNode) => {
     await createChild(node, 'file', options);
   });
   const newFolderCommand = vscode.commands.registerCommand(commands.newSidebarFolder, async (node?: FileExplorerNode) => {
     await createChild(node, 'folder', options);
+  });
+  const cutCommand = vscode.commands.registerCommand(commands.cutSidebarFile, (node?: FileExplorerNode) => {
+    if (node && node.kind !== 'workspaceFolder') {
+      fileClipboard = { node, operation: 'cut' };
+    }
+  });
+  const copyCommand = vscode.commands.registerCommand(commands.copySidebarFile, (node?: FileExplorerNode) => {
+    if (node && node.kind !== 'workspaceFolder') {
+      fileClipboard = { node, operation: 'copy' };
+    }
+  });
+  const pasteCommand = vscode.commands.registerCommand(commands.pasteSidebarFile, async (node?: FileExplorerNode) => {
+    if (!fileClipboard) {
+      return;
+    }
+
+    const parent = await resolveDirectoryNode(node);
+    if (!parent) {
+      return;
+    }
+
+    await pasteFileNode(fileClipboard, parent, options);
+    if (fileClipboard.operation === 'cut') {
+      fileClipboard = undefined;
+    }
   });
   const renameCommand = vscode.commands.registerCommand(commands.renameSidebarFile, async (node?: FileExplorerNode) => {
     await renameNode(node, options);
@@ -155,6 +234,17 @@ export function registerGoBenchFileExplorer(options: {
       await vscode.env.clipboard.writeText(node.uri.fsPath);
     }
   );
+  const findInFolderCommand = vscode.commands.registerCommand(commands.findInSidebarFolder, async (node?: FileExplorerNode) => {
+    const target = node ?? await resolveDirectoryNode();
+    if (!target) {
+      return;
+    }
+
+    const relativePath = vscode.workspace.asRelativePath(target.uri, false);
+    await vscode.commands.executeCommand('workbench.action.findInFiles', {
+      filesToInclude: target.kind === 'file' ? relativePath : `${relativePath}/**`
+    });
+  });
 
   const fileChangeSubscriptions = [
     watcher.onDidCreate(scheduleRefresh),
@@ -167,13 +257,19 @@ export function registerGoBenchFileExplorer(options: {
     workspaceFoldersSubscription,
     refreshFilesCommand,
     openFileCommand,
+    openFileToSideCommand,
+    openFileWithCommand,
     newFileCommand,
     newFolderCommand,
+    cutCommand,
+    copyCommand,
+    pasteCommand,
     renameCommand,
     deleteCommand,
     revealCommand,
     copyRelativePathCommand,
     copyAbsolutePathCommand,
+    findInFolderCommand,
     ...fileChangeSubscriptions,
     new vscode.Disposable(() => {
       if (refreshTimer) {
@@ -181,6 +277,57 @@ export function registerGoBenchFileExplorer(options: {
       }
     })
   );
+}
+
+async function pasteFileNode(
+  source: { node: FileExplorerNode; operation: 'copy' | 'cut' },
+  parent: FileExplorerNode,
+  options: { provider: GoBenchFileExplorerProvider; output: vscode.OutputChannel }
+): Promise<void> {
+  const target = vscode.Uri.joinPath(parent.uri, basename(source.node.uri.fsPath));
+  if (source.node.uri.toString() === target.toString()) {
+    return;
+  }
+
+  try {
+    if (await uriExists(target)) {
+      void vscode.window.showErrorMessage(`Go Bench: "${basename(target.fsPath)}" already exists.`);
+      return;
+    }
+
+    if (source.operation === 'cut') {
+      await vscode.workspace.fs.rename(source.node.uri, target, { overwrite: false });
+    } else {
+      await copyUriRecursively(source.node.uri, target);
+    }
+    options.provider.refresh();
+  } catch (error) {
+    options.output.appendLine(`Go Bench Files: failed to paste ${source.node.uri.fsPath}: ${String(error)}`);
+    void vscode.window.showErrorMessage('Go Bench: failed to paste file or folder.');
+  }
+}
+
+async function copyUriRecursively(source: vscode.Uri, target: vscode.Uri): Promise<void> {
+  const stat = await vscode.workspace.fs.stat(source);
+  if ((stat.type & vscode.FileType.Directory) !== 0) {
+    await vscode.workspace.fs.createDirectory(target);
+    const entries = await vscode.workspace.fs.readDirectory(source);
+    for (const [name] of entries) {
+      await copyUriRecursively(vscode.Uri.joinPath(source, name), vscode.Uri.joinPath(target, name));
+    }
+    return;
+  }
+
+  await vscode.workspace.fs.writeFile(target, await vscode.workspace.fs.readFile(source));
+}
+
+async function uriExists(uri: vscode.Uri): Promise<boolean> {
+  try {
+    await vscode.workspace.fs.stat(uri);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function createChild(

@@ -25,16 +25,32 @@ export const commands = {
   refreshSidebarFiles: 'goBench.sidebar.refreshFiles',
   /** Go Bench 侧边栏 Tests 视图标题区刷新入口。 */
   refreshSidebarTests: 'goBench.sidebar.refreshTests',
+  /** 运行 Go Bench Tests 视图中的测试函数或 table case。 */
+  runSidebarTest: 'goBench.sidebar.tests.run',
+  /** 调试 Go Bench Tests 视图中的测试函数或 table case。 */
+  debugSidebarTest: 'goBench.sidebar.tests.debug',
   /** 打开 Go Bench Files 视图中的文件。 */
   openSidebarFile: 'goBench.sidebar.files.open',
+  /** 在旁边打开 Go Bench Files 视图中的文件。 */
+  openSidebarFileToSide: 'goBench.sidebar.files.openToSide',
+  /** 使用 VSCode Open With 流程打开 Go Bench Files 视图中的文件。 */
+  openSidebarFileWith: 'goBench.sidebar.files.openWith',
   /** 在 Go Bench Files 视图中新建文件。 */
   newSidebarFile: 'goBench.sidebar.files.newFile',
   /** 在 Go Bench Files 视图中新建文件夹。 */
   newSidebarFolder: 'goBench.sidebar.files.newFolder',
+  /** 剪切 Go Bench Files 视图中的文件或文件夹。 */
+  cutSidebarFile: 'goBench.sidebar.files.cut',
+  /** 复制 Go Bench Files 视图中的文件或文件夹。 */
+  copySidebarFile: 'goBench.sidebar.files.copy',
+  /** 粘贴到 Go Bench Files 视图中的文件夹。 */
+  pasteSidebarFile: 'goBench.sidebar.files.paste',
   /** 重命名 Go Bench Files 视图中的文件或文件夹。 */
   renameSidebarFile: 'goBench.sidebar.files.rename',
   /** 删除 Go Bench Files 视图中的文件或文件夹。 */
   deleteSidebarFile: 'goBench.sidebar.files.delete',
+  /** 在 Go Bench Files 视图中的目录内搜索。 */
+  findInSidebarFolder: 'goBench.sidebar.files.findInFolder',
   /** 在系统文件管理器中显示 Go Bench Files 视图中的目标。 */
   revealSidebarFile: 'goBench.sidebar.files.reveal',
   /** 复制 Go Bench Files 视图中目标相对 workspace 的路径。 */
@@ -46,7 +62,7 @@ export const commands = {
 /** Go Bench 侧边栏贡献的 view container 和 view ID。 */
 export const sidebarViewIds = {
   /** Activity Bar 中的 Go Bench 容器。 */
-  container: 'goBench.sidebar',
+  container: 'go-bench-sidebar',
   /** 文件视图，里程碑 13 会接入 workspace 文件树。 */
   files: 'goBench.sidebar.files',
   /** 测试视图，里程碑 14 会映射当前 Testing API 树模型。 */

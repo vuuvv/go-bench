@@ -28,11 +28,19 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.toggleTestTreeModeFromStandardGo, 'goBench.toggleTestTreeModeFromStandardGo');
     assert.equal(commands.refreshSidebarFiles, 'goBench.sidebar.refreshFiles');
     assert.equal(commands.refreshSidebarTests, 'goBench.sidebar.refreshTests');
+    assert.equal(commands.runSidebarTest, 'goBench.sidebar.tests.run');
+    assert.equal(commands.debugSidebarTest, 'goBench.sidebar.tests.debug');
     assert.equal(commands.openSidebarFile, 'goBench.sidebar.files.open');
+    assert.equal(commands.openSidebarFileToSide, 'goBench.sidebar.files.openToSide');
+    assert.equal(commands.openSidebarFileWith, 'goBench.sidebar.files.openWith');
     assert.equal(commands.newSidebarFile, 'goBench.sidebar.files.newFile');
     assert.equal(commands.newSidebarFolder, 'goBench.sidebar.files.newFolder');
+    assert.equal(commands.cutSidebarFile, 'goBench.sidebar.files.cut');
+    assert.equal(commands.copySidebarFile, 'goBench.sidebar.files.copy');
+    assert.equal(commands.pasteSidebarFile, 'goBench.sidebar.files.paste');
     assert.equal(commands.renameSidebarFile, 'goBench.sidebar.files.rename');
     assert.equal(commands.deleteSidebarFile, 'goBench.sidebar.files.delete');
+    assert.equal(commands.findInSidebarFolder, 'goBench.sidebar.files.findInFolder');
     assert.equal(commands.revealSidebarFile, 'goBench.sidebar.files.reveal');
     assert.equal(commands.copySidebarRelativePath, 'goBench.sidebar.files.copyRelativePath');
     assert.equal(commands.copySidebarAbsolutePath, 'goBench.sidebar.files.copyAbsolutePath');
@@ -40,7 +48,7 @@ describe('extension skeleton constants', () => {
 
   it('defines stable Go Bench sidebar view ids', () => {
     assert.deepEqual(sidebarViewIds, {
-      container: 'goBench.sidebar',
+      container: 'go-bench-sidebar',
       files: 'goBench.sidebar.files',
       tests: 'goBench.sidebar.tests',
       runAndDebug: 'goBench.sidebar.runAndDebug'
