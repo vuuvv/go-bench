@@ -49,7 +49,7 @@ export class GoBenchFileExplorerProvider
     if (node.kind === 'file') {
       item.command = {
         command: commands.openSidebarFile,
-        title: 'Open File',
+        title: 'Go to File',
         arguments: [node]
       };
     }

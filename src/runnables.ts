@@ -114,13 +114,13 @@ export class GoBenchRunnablesProvider
 
     const treeItem = new vscode.TreeItem(node.item.label, vscode.TreeItemCollapsibleState.None);
     const runtimeState = this.getRuntimeState(node.item.id);
-    treeItem.description = formatRunnableDescription(node.item);
+    // treeItem.description = formatRunnableDescription(node.item);
     treeItem.tooltip = `${node.item.label}\n${node.item.uri}\npackage: ${node.item.packageName ?? 'unknown'}\nworkspace: ${node.item.workspaceFolder}`;
     treeItem.contextValue = formatRunnableContextValue(runtimeState);
     treeItem.iconPath = getRunnableIcon(node.item, runtimeState);
     treeItem.command = {
       command: commands.revealRunnable,
-      title: 'Open File',
+      title: 'Go to File',
       arguments: [node.item]
     };
     return treeItem;
@@ -720,7 +720,7 @@ async function runRunnable(
   options.output.appendLine(`$ ${command}`);
 
   const terminal = vscode.window.createTerminal({
-    name: `Go Bench: ${item.label}`,
+    name: `${item.label}`,
     cwd,
     env: item.env
   });

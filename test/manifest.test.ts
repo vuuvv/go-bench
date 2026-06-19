@@ -266,7 +266,7 @@ describe('VSCode extension manifest', () => {
       },
       {
         command: commands.revealRunnable,
-        title: 'Open File',
+        title: 'Go to File',
         icon: '$(go-to-file)'
       },
       {
