@@ -8,12 +8,17 @@
 import * as vscode from 'vscode';
 import { sidebarViewIds } from './constants';
 import { GoBenchFileExplorerProvider, registerGoBenchFileExplorer } from './fileExplorer';
+import type { GoBenchRunTargetTestResultTree, GoBenchRunTargetTestResultsOptions } from './testResults';
+import type { GoTestRunResult, GoTestRunTarget } from './runner';
 import { GoBenchSidebarTestsProvider, registerGoBenchSidebarTests } from './sidebarTests';
 
 /** 注册 Go Bench 侧边栏三个空视图及当前阶段可用的标题区命令。 */
 export function registerGoBenchSidebar(options: {
   output: vscode.OutputChannel;
   refreshTests: () => Promise<void>;
+  runTest: (target: GoTestRunTarget, options?: GoBenchRunTargetTestResultsOptions) => Promise<GoTestRunResult>;
+  runTestTree: (tree: GoBenchRunTargetTestResultTree, options?: Pick<GoBenchRunTargetTestResultsOptions, 'onStatus'>) => Promise<GoTestRunResult>;
+  debugTest: (target: GoTestRunTarget) => Promise<boolean>;
 }): vscode.Disposable {
   const filesProvider = new GoBenchFileExplorerProvider();
   const testsProvider = new GoBenchSidebarTestsProvider({ output: options.output });
@@ -35,8 +40,12 @@ export function registerGoBenchSidebar(options: {
   const fileExplorerRegistration = registerGoBenchFileExplorer({ provider: filesProvider, output: options.output });
   const testsRegistration = registerGoBenchSidebarTests({
     provider: testsProvider,
+    treeView: testsView,
     output: options.output,
-    refreshTestExplorer: options.refreshTests
+    refreshTestExplorer: options.refreshTests,
+    runTest: options.runTest,
+    runTestTree: options.runTestTree,
+    debugTest: options.debugTest
   });
 
   return vscode.Disposable.from(

@@ -25,6 +25,8 @@ export const commands = {
   refreshSidebarFiles: 'goBench.sidebar.refreshFiles',
   /** Go Bench 侧边栏 Tests 视图标题区刷新入口。 */
   refreshSidebarTests: 'goBench.sidebar.refreshTests',
+  /** 在 Go Bench Tests 视图中定位当前编辑器文件对应的测试节点。 */
+  revealCurrentSidebarTest: 'goBench.sidebar.tests.revealCurrentFile',
   /** 运行 Go Bench Tests 视图中的测试函数或 table case。 */
   runSidebarTest: 'goBench.sidebar.tests.run',
   /** 调试 Go Bench Tests 视图中的测试函数或 table case。 */

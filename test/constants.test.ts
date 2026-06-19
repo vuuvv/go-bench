@@ -28,6 +28,7 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.toggleTestTreeModeFromStandardGo, 'goBench.toggleTestTreeModeFromStandardGo');
     assert.equal(commands.refreshSidebarFiles, 'goBench.sidebar.refreshFiles');
     assert.equal(commands.refreshSidebarTests, 'goBench.sidebar.refreshTests');
+    assert.equal(commands.revealCurrentSidebarTest, 'goBench.sidebar.tests.revealCurrentFile');
     assert.equal(commands.runSidebarTest, 'goBench.sidebar.tests.run');
     assert.equal(commands.debugSidebarTest, 'goBench.sidebar.tests.debug');
     assert.equal(commands.openSidebarFile, 'goBench.sidebar.files.open');

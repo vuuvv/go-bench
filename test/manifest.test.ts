@@ -103,6 +103,11 @@ describe('VSCode extension manifest', () => {
         icon: '$(refresh)'
       },
       {
+        command: commands.revealCurrentSidebarTest,
+        title: 'Reveal Current File Test',
+        icon: '$(target)'
+      },
+      {
         command: commands.runSidebarTest,
         title: 'Run Test',
         icon: '$(run)'
@@ -276,6 +281,11 @@ describe('VSCode extension manifest', () => {
         group: 'navigation'
       },
       {
+        command: commands.revealCurrentSidebarTest,
+        when: `view == ${sidebarViewIds.tests}`,
+        group: 'navigation@1'
+      },
+      {
         command: commands.toggleTestTreeModeFromGoBench,
         when: 'view == workbench.view.testing && goBench.testTreeMode.goBench',
         group: 'navigation'
@@ -292,13 +302,13 @@ describe('VSCode extension manifest', () => {
     assert.deepEqual(manifest.contributes.menus?.['view/item/context'], [
       {
         command: commands.runSidebarTest,
-        when: `view == ${sidebarViewIds.tests} && viewItem == goBenchTestRunnable`,
-        group: 'navigation@0'
+        when: `view == ${sidebarViewIds.tests} && (viewItem == goBenchTestRunnable || viewItem == goBenchTestRunnableGroup)`,
+        group: 'inline@0'
       },
       {
         command: commands.debugSidebarTest,
-        when: `view == ${sidebarViewIds.tests} && viewItem == goBenchTestRunnable`,
-        group: 'navigation@1'
+        when: `view == ${sidebarViewIds.tests} && (viewItem == goBenchTestRunnable || viewItem == goBenchTestRunnableGroup)`,
+        group: 'inline@1'
       },
       {
         command: commands.openSidebarFile,

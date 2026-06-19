@@ -21,7 +21,7 @@ import { isGoTestFile } from './parser';
 import type { GoTestRunTarget } from './runner';
 import { registerGoBenchSidebar } from './sidebar';
 import { GoBenchTestingApiPrototypeManager } from './testing';
-import { GoBenchCodeLensTestResults } from './testResults';
+import { GoBenchCodeLensTestResults, type GoBenchRunTargetTestResultTree } from './testResults';
 import { normalizeTableTestConfig, shouldShowGoBenchTestExplorer } from './tableTestConfig';
 
 /**
@@ -57,9 +57,11 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!result.success) {
         void vscode.window.showErrorMessage(`Go Bench: go test failed with exit code ${result.code ?? 'unknown'}.`);
       }
+      return result;
     } catch (error) {
       outputChannel.appendLine(`Go Bench run failed: ${String(error)}`);
       void vscode.window.showErrorMessage(`Go Bench: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
     }
   });
 
@@ -81,9 +83,11 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!started) {
         void vscode.window.showErrorMessage('Go Bench: failed to start Go test debugging.');
       }
+      return started;
     } catch (error) {
       outputChannel.appendLine(`Go Bench debug failed: ${String(error)}`);
       void vscode.window.showErrorMessage(`Go Bench: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
     }
   });
 
@@ -181,6 +185,36 @@ export function activate(context: vscode.ExtensionContext): void {
     output: outputChannel,
     refreshTests: async () => {
       await vscode.commands.executeCommand(commands.refreshTestTree);
+    },
+    runTest: async (target, runOptions) => {
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(target.file));
+      if (!workspaceFolder) {
+        throw new Error('cannot determine workspace folder for this Go test file.');
+      }
+      return await codeLensTestResults.runTarget(target, workspaceFolder.uri.fsPath, runOptions);
+    },
+    runTestTree: async (tree, runOptions) => {
+      const file = findFirstTreeFile(tree);
+      if (!file) {
+        throw new Error('cannot determine workspace folder for this test group.');
+      }
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(file));
+      if (!workspaceFolder) {
+        throw new Error('cannot determine workspace folder for this test group.');
+      }
+      return await codeLensTestResults.runTargetTree(tree, workspaceFolder.uri.fsPath, runOptions);
+    },
+    debugTest: async (target: GoTestRunTarget) => {
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(target.file));
+      if (!workspaceFolder) {
+        throw new Error('cannot determine workspace folder for this Go test file.');
+      }
+
+      const configuration = buildGoTestDebugConfiguration(target);
+      outputChannel.appendLine('');
+      outputChannel.appendLine(`Debugging ${target.label}`);
+      outputChannel.appendLine(`Go Bench debug configuration: ${JSON.stringify(configuration)}`);
+      return await startDebuggingAndVerify(workspaceFolder, configuration, target.label);
     }
   });
 
@@ -232,6 +266,19 @@ function normalizeRefreshFileArgument(fileArg: unknown): string | undefined {
     return fileArg;
   }
   return vscode.window.activeTextEditor?.document.uri.fsPath;
+}
+
+function findFirstTreeFile(tree: GoBenchRunTargetTestResultTree): string | undefined {
+  if (tree.file) {
+    return tree.file;
+  }
+  for (const child of tree.children) {
+    const file = findFirstTreeFile(child);
+    if (file) {
+      return file;
+    }
+  }
+  return undefined;
 }
 
 async function startDebuggingAndVerify(
