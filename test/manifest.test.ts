@@ -496,72 +496,72 @@ describe('VSCode extension manifest', () => {
       },
       {
         command: commands.runRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableStopped`,
         group: 'inline@0'
       },
       {
         command: commands.debugRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableStopped`,
         group: 'inline@1'
       },
       {
         command: commands.stopRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
         group: 'inline@2'
       },
       {
         command: commands.restartRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
         group: 'inline@3'
       },
       {
         command: commands.revealRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
         group: 'inline@4'
       },
       {
         command: commands.removeRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
         group: 'inline@5'
       },
       {
         command: commands.runRunnableGroup,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroup`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableGroupStopped || viewItem == goBenchRunnableGroupRunning)`,
         group: 'inline@0'
       },
       {
         command: commands.stopRunnableGroup,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroup`,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroupRunning`,
         group: 'inline@1'
       },
       {
         command: commands.restartRunnableGroup,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroup`,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroupRunning`,
         group: 'inline@2'
       },
       {
         command: commands.editRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
         group: 'navigation@0'
       },
       {
         command: commands.moveRunnableToGroup,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
         group: 'navigation@1'
       },
       {
         command: commands.removeRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
         group: 'navigation@2'
       },
       {
         command: commands.copyRunnablePath,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
         group: 'navigation@3'
       },
       {
         command: commands.removeRunnableGroup,
-        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroup`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableGroupStopped || viewItem == goBenchRunnableGroupRunning)`,
         group: 'navigation@0'
       },
       {

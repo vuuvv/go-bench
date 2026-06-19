@@ -8,7 +8,7 @@
 import * as vscode from 'vscode';
 import { sidebarViewIds } from './constants';
 import { GoBenchFileExplorerProvider, registerGoBenchFileExplorer } from './fileExplorer';
-import { GoBenchRunnablesProvider, registerGoBenchRunnables } from './runnables';
+import { GoBenchRunnablesDragAndDropController, GoBenchRunnablesProvider, registerGoBenchRunnables } from './runnables';
 import type { GoBenchRunTargetTestResultTree, GoBenchRunTargetTestResultsOptions } from './testResults';
 import type { GoTestRunResult, GoTestRunTarget } from './runner';
 import { GoBenchSidebarTestsProvider, registerGoBenchSidebarTests } from './sidebarTests';
@@ -24,6 +24,7 @@ export function registerGoBenchSidebar(options: {
   const filesProvider = new GoBenchFileExplorerProvider();
   const testsProvider = new GoBenchSidebarTestsProvider({ output: options.output });
   const runAndDebugProvider = new GoBenchRunnablesProvider();
+  const runAndDebugDragAndDropController = new GoBenchRunnablesDragAndDropController({ provider: runAndDebugProvider });
 
   const filesView = vscode.window.createTreeView(sidebarViewIds.files, {
     treeDataProvider: filesProvider,
@@ -35,6 +36,7 @@ export function registerGoBenchSidebar(options: {
   });
   const runAndDebugView = vscode.window.createTreeView(sidebarViewIds.runAndDebug, {
     treeDataProvider: runAndDebugProvider,
+    dragAndDropController: runAndDebugDragAndDropController,
     showCollapseAll: false
   });
 

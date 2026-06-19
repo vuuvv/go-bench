@@ -52,17 +52,40 @@ type RunnableRuntimeOptions = {
   provider: GoBenchRunnablesProvider;
   output: vscode.OutputChannel;
   runningTerminals: Map<string, vscode.Terminal>;
+  debugSessions: Map<string, vscode.DebugSession>;
 };
+
+type RunnableRuntimeState = 'stopped' | 'running' | 'debugging';
+
+const runnableDragMimeType = 'application/vnd.code.tree.goBench.sidebar.runAndDebug';
 
 /** Run and Debug 视图的数据提供器，直接从 workspace settings 读取最新 runnable 列表。 */
 export class GoBenchRunnablesProvider
   implements vscode.TreeDataProvider<RunnableTreeNode>, vscode.Disposable {
   private readonly treeDataDidChangeEmitter = new vscode.EventEmitter<RunnableTreeNode | undefined | null | void>();
+  private readonly runtimeStates = new Map<string, Exclude<RunnableRuntimeState, 'stopped'>>();
 
   public readonly onDidChangeTreeData = this.treeDataDidChangeEmitter.event;
 
   public refresh(): void {
     this.treeDataDidChangeEmitter.fire();
+  }
+
+  /** 记录运行态，让 TreeItem 图标和 inline action 能和 terminal/debug session 同步。 */
+  public setRuntimeState(id: string, state: Exclude<RunnableRuntimeState, 'stopped'>): void {
+    this.runtimeStates.set(id, state);
+    this.refresh();
+  }
+
+  /** 清除运行态，回到未运行按钮集合。 */
+  public clearRuntimeState(id: string): void {
+    this.runtimeStates.delete(id);
+    this.refresh();
+  }
+
+  /** 查询当前运行态，用于 restart 时保留 run/debug 模式。 */
+  public getRuntimeState(id: string): RunnableRuntimeState {
+    return this.runtimeStates.get(id) ?? 'stopped';
   }
 
   public getTreeItem(node: RunnableTreeNode): vscode.TreeItem {
@@ -82,16 +105,19 @@ export class GoBenchRunnablesProvider
       const item = new vscode.TreeItem(node.group.label, vscode.TreeItemCollapsibleState.Expanded);
       item.description = `${node.items.length} item${node.items.length === 1 ? '' : 's'}`;
       item.tooltip = `${node.group.label}\n${node.items.length} runnable target${node.items.length === 1 ? '' : 's'}`;
-      item.contextValue = 'goBenchRunnableGroup';
+      item.contextValue = node.items.some(child => this.getRuntimeState(child.id) !== 'stopped')
+        ? 'goBenchRunnableGroupRunning'
+        : 'goBenchRunnableGroupStopped';
       item.iconPath = new vscode.ThemeIcon('folder');
       return item;
     }
 
     const treeItem = new vscode.TreeItem(node.item.label, vscode.TreeItemCollapsibleState.None);
+    const runtimeState = this.getRuntimeState(node.item.id);
     treeItem.description = formatRunnableDescription(node.item);
     treeItem.tooltip = `${node.item.label}\n${node.item.uri}\npackage: ${node.item.packageName ?? 'unknown'}\nworkspace: ${node.item.workspaceFolder}`;
-    treeItem.contextValue = 'goBenchRunnable';
-    treeItem.iconPath = new vscode.ThemeIcon(node.item.kind === 'goFile' ? 'go-to-file' : 'package');
+    treeItem.contextValue = formatRunnableContextValue(runtimeState);
+    treeItem.iconPath = getRunnableIcon(node.item, runtimeState);
     treeItem.command = {
       command: commands.revealRunnable,
       title: 'Open File',
@@ -117,7 +143,47 @@ export class GoBenchRunnablesProvider
   }
 
   public dispose(): void {
+    this.runtimeStates.clear();
     this.treeDataDidChangeEmitter.dispose();
+  }
+}
+
+/** 支持把 runnable 拖入 group，或拖到根层级以移出 group。 */
+export class GoBenchRunnablesDragAndDropController implements vscode.TreeDragAndDropController<RunnableTreeNode> {
+  public readonly dragMimeTypes = [runnableDragMimeType];
+  public readonly dropMimeTypes = [runnableDragMimeType];
+
+  public constructor(private readonly options: { provider: GoBenchRunnablesProvider }) {}
+
+  public handleDrag(source: readonly RunnableTreeNode[], dataTransfer: vscode.DataTransfer): void {
+    const itemIds = source
+      .filter((node): node is Extract<RunnableTreeNode, { kind: 'runnable' }> => node.kind === 'runnable')
+      .map(node => node.item.id);
+    if (itemIds.length === 0) {
+      return;
+    }
+    dataTransfer.set(runnableDragMimeType, new vscode.DataTransferItem(JSON.stringify(itemIds)));
+  }
+
+  public async handleDrop(target: RunnableTreeNode | undefined, dataTransfer: vscode.DataTransfer): Promise<void> {
+    const transferItem = dataTransfer.get(runnableDragMimeType);
+    const rawValue = transferItem?.value;
+    if (typeof rawValue !== 'string') {
+      return;
+    }
+
+    const itemIds = parseDraggedRunnableIds(rawValue);
+    if (itemIds.length === 0) {
+      return;
+    }
+
+    const groupId = resolveDropGroupId(target);
+    let items = readRunnableItems();
+    for (const itemId of itemIds) {
+      items = assignRunnableGroup(items, itemId, groupId);
+    }
+    await writeRunnableItems(items);
+    this.options.provider.refresh();
   }
 }
 
@@ -127,7 +193,8 @@ export function registerGoBenchRunnables(options: {
   output: vscode.OutputChannel;
 }): vscode.Disposable {
   const runningTerminals = new Map<string, vscode.Terminal>();
-  const runtimeOptions = { ...options, runningTerminals };
+  const debugSessions = new Map<string, vscode.DebugSession>();
+  const runtimeOptions = { ...options, runningTerminals, debugSessions };
   const configurationSubscription = vscode.workspace.onDidChangeConfiguration(event => {
     if (event.affectsConfiguration(configurationKeys.runnableItems) || event.affectsConfiguration(configurationKeys.runnableGroups)) {
       options.provider.refresh();
@@ -137,9 +204,17 @@ export function registerGoBenchRunnables(options: {
     for (const [id, runningTerminal] of runningTerminals) {
       if (runningTerminal === terminal) {
         runningTerminals.delete(id);
+        options.provider.clearRuntimeState(id);
       }
     }
-    options.provider.refresh();
+  });
+  const debugSessionTerminateSubscription = vscode.debug.onDidTerminateDebugSession(session => {
+    for (const [id, debugSession] of debugSessions) {
+      if (debugSession === session) {
+        debugSessions.delete(id);
+        options.provider.clearRuntimeState(id);
+      }
+    }
   });
 
   const addCurrentFileCommand = vscode.commands.registerCommand(commands.addCurrentRunnableFile, async () => {
@@ -210,7 +285,7 @@ export function registerGoBenchRunnables(options: {
     if (!group) {
       return;
     }
-    stopRunnableGroup(group, runtimeOptions);
+    await stopRunnableGroup(group, runtimeOptions);
   });
   const restartGroupCommand = vscode.commands.registerCommand(commands.restartRunnableGroup, async (node?: RunnableTreeNode) => {
     const group = normalizeRunnableGroupCommandArgument(node);
@@ -258,12 +333,12 @@ export function registerGoBenchRunnables(options: {
     }
     await runRunnable(item, runtimeOptions);
   });
-  const stopCommand = vscode.commands.registerCommand(commands.stopRunnable, (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
+  const stopCommand = vscode.commands.registerCommand(commands.stopRunnable, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
     const item = normalizeRunnableCommandArgument(itemOrNode);
     if (!item) {
       return;
     }
-    stopRunnable(item, runtimeOptions);
+    await stopRunnable(item, runtimeOptions);
   });
   const restartCommand = vscode.commands.registerCommand(commands.restartRunnable, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
     const item = normalizeRunnableCommandArgument(itemOrNode);
@@ -277,7 +352,7 @@ export function registerGoBenchRunnables(options: {
     if (!item) {
       return;
     }
-    await debugRunnable(item, options);
+    await debugRunnable(item, runtimeOptions);
   });
   const revealCommand = vscode.commands.registerCommand(commands.revealRunnable, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
     const item = normalizeRunnableCommandArgument(itemOrNode);
@@ -298,6 +373,7 @@ export function registerGoBenchRunnables(options: {
   return vscode.Disposable.from(
     configurationSubscription,
     terminalCloseSubscription,
+    debugSessionTerminateSubscription,
     addCurrentFileCommand,
     addFileCommand,
     addPackageCommand,
@@ -318,6 +394,7 @@ export function registerGoBenchRunnables(options: {
     copyPathCommand,
     new vscode.Disposable(() => {
       runningTerminals.clear();
+      debugSessions.clear();
     })
   );
 }
@@ -509,23 +586,27 @@ async function runRunnableGroup(
   }
 }
 
-function stopRunnableGroup(
+async function stopRunnableGroup(
   groupNode: Extract<RunnableTreeNode, { kind: 'group' }>,
   options: RunnableRuntimeOptions
-): void {
+): Promise<void> {
   for (const item of groupNode.items) {
-    stopRunnable(item, options, { quiet: true });
+    await stopRunnable(item, options, { quiet: true });
   }
-  options.provider.refresh();
 }
 
 async function restartRunnableGroup(
   groupNode: Extract<RunnableTreeNode, { kind: 'group' }>,
   options: RunnableRuntimeOptions
 ): Promise<void> {
-  stopRunnableGroup(groupNode, options);
-  for (const item of groupNode.items) {
-    await runRunnable(item, options);
+  const runningItems = groupNode.items.filter(item => options.provider.getRuntimeState(item.id) !== 'stopped');
+  if (runningItems.length === 0) {
+    void vscode.window.showInformationMessage(`Go Bench: group "${groupNode.group.label}" has no running items.`);
+    return;
+  }
+
+  for (const item of runningItems) {
+    await restartRunnable(item, options);
   }
 }
 
@@ -633,7 +714,7 @@ async function runRunnable(
   }
 
   const command = buildGoRunCommand(item, workspaceFolder);
-  stopRunnable(item, options, { quiet: true });
+  await stopRunnable(item, options, { quiet: true });
   options.output.appendLine('');
   options.output.appendLine(`Running runnable ${item.label}`);
   options.output.appendLine(`$ ${command}`);
@@ -644,38 +725,50 @@ async function runRunnable(
     env: item.env
   });
   options.runningTerminals.set(item.id, terminal);
+  options.provider.setRuntimeState(item.id, 'running');
   terminal.show();
   terminal.sendText(command);
-  options.provider.refresh();
 }
 
-function stopRunnable(
+async function stopRunnable(
   item: GoBenchRunnableItem,
   options: RunnableRuntimeOptions,
   control: { quiet?: boolean } = {}
-): void {
+): Promise<void> {
   const terminal = options.runningTerminals.get(item.id);
-  if (!terminal) {
+  const debugSession = options.debugSessions.get(item.id);
+  if (!terminal && !debugSession) {
     if (!control.quiet) {
       void vscode.window.showInformationMessage(`Go Bench: "${item.label}" is not running.`);
     }
     return;
   }
 
-  terminal.dispose();
-  options.runningTerminals.delete(item.id);
+  if (terminal) {
+    terminal.dispose();
+    options.runningTerminals.delete(item.id);
+  }
+  if (debugSession) {
+    await vscode.debug.stopDebugging(debugSession);
+    options.debugSessions.delete(item.id);
+  }
+  options.provider.clearRuntimeState(item.id);
   options.output.appendLine(`Stopped runnable ${item.label}`);
-  options.provider.refresh();
 }
 
 async function restartRunnable(item: GoBenchRunnableItem, options: RunnableRuntimeOptions): Promise<void> {
-  stopRunnable(item, options, { quiet: true });
+  const previousState = options.provider.getRuntimeState(item.id);
+  await stopRunnable(item, options, { quiet: true });
+  if (previousState === 'debugging') {
+    await debugRunnable(item, options);
+    return;
+  }
   await runRunnable(item, options);
 }
 
 async function debugRunnable(
   item: GoBenchRunnableItem,
-  options: { provider: GoBenchRunnablesProvider; output: vscode.OutputChannel }
+  options: RunnableRuntimeOptions
 ): Promise<void> {
   const workspaceFolder = findWorkspaceFolderByName(item.workspaceFolder);
   if (!workspaceFolder) {
@@ -688,20 +781,46 @@ async function debugRunnable(
   }
 
   const configuration = buildRunnableDebugConfiguration(item, workspaceFolder);
+  await stopRunnable(item, options, { quiet: true });
   options.output.appendLine('');
   options.output.appendLine(`Debugging runnable ${item.label}`);
   options.output.appendLine(`Go Bench runnable debug configuration: ${JSON.stringify(configuration)}`);
 
   try {
     const vscodeWorkspaceFolder = vscode.workspace.workspaceFolders?.find(folder => folder.name === item.workspaceFolder);
+    const startedSession = observeDebugSessionStart(configuration.name);
     const started = await vscode.debug.startDebugging(vscodeWorkspaceFolder, configuration);
     if (!started) {
       void vscode.window.showErrorMessage('Go Bench: failed to start runnable debugging. Check the Go extension is installed.');
+      return;
+    }
+
+    const session = await startedSession;
+    if (session) {
+      options.debugSessions.set(item.id, session);
+      options.provider.setRuntimeState(item.id, 'debugging');
     }
   } catch (error) {
     options.output.appendLine(`Go Bench runnable debug failed: ${String(error)}`);
     void vscode.window.showErrorMessage(`Go Bench: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+function observeDebugSessionStart(configurationName: string): Promise<vscode.DebugSession | undefined> {
+  return new Promise(resolve => {
+    const timer = setTimeout(() => {
+      subscription.dispose();
+      resolve(undefined);
+    }, 2_000);
+    const subscription = vscode.debug.onDidStartDebugSession(session => {
+      if (session.configuration.name !== configurationName) {
+        return;
+      }
+      clearTimeout(timer);
+      subscription.dispose();
+      resolve(session);
+    });
+  });
 }
 
 async function revealRunnable(item: GoBenchRunnableItem): Promise<void> {
@@ -873,9 +992,48 @@ function rootToTreeNode(root: GoBenchRunnableTreeRoot): RunnableTreeNode {
   };
 }
 
+function formatRunnableContextValue(state: RunnableRuntimeState): string {
+  if (state === 'running') {
+    return 'goBenchRunnableRunning';
+  }
+  if (state === 'debugging') {
+    return 'goBenchRunnableDebugging';
+  }
+  return 'goBenchRunnableStopped';
+}
+
+function getRunnableIcon(item: GoBenchRunnableItem, state: RunnableRuntimeState): vscode.ThemeIcon {
+  if (state === 'running') {
+    return new vscode.ThemeIcon('play-circle', new vscode.ThemeColor('debugIcon.startForeground'));
+  }
+  if (state === 'debugging') {
+    return new vscode.ThemeIcon('debug-alt', new vscode.ThemeColor('debugIcon.breakpointForeground'));
+  }
+  return new vscode.ThemeIcon(item.kind === 'goFile' ? 'go-to-file' : 'package');
+}
+
 function formatRunnableDescription(item: GoBenchRunnableItem): string {
   const packagePart = item.packageName ? `package ${item.packageName}` : 'package unknown';
   return item.kind === 'goFile' ? packagePart : `${packagePart} directory`;
+}
+
+function parseDraggedRunnableIds(rawValue: string): string[] {
+  try {
+    const value = JSON.parse(rawValue) as unknown;
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function resolveDropGroupId(target: RunnableTreeNode | undefined): string | undefined {
+  if (target?.kind === 'group') {
+    return target.group.id;
+  }
+  if (target?.kind === 'runnable') {
+    return target.item.groupId;
+  }
+  return undefined;
 }
 
 function normalizeRunnableCommandArgument(arg: GoBenchRunnableItem | RunnableTreeNode | undefined): GoBenchRunnableItem | undefined {

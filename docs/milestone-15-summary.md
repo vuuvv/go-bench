@@ -17,6 +17,9 @@
 - Open File 会定位到 `func main`，package 目录目标会在目录内寻找包含 main 函数的 Go 文件。
 - 运行中的 runnable 支持 stop/restart；group 支持批量 stop/restart。
 - runnable 节点新增 inline remove 按钮，用户不用打开右键菜单也能移除项目。
+- Run and Debug 支持拖拽 runnable 到 group 归档，或拖到根层级移出 group。
+- runnable 节点图标显示运行态：未运行显示目标类型，run 中显示彩色 play，debug 中显示彩色 debug。
+- runnable inline 按钮按运行态切换：未运行只显示 Run/Debug，运行或调试中只显示 Restart/Stop。
 - 普通 Go 文件中静态识别到 `package main` 和 `func main(...)` 时，会在 main 函数上显示 Run Main / Debug Main CodeLens。
 - 运行使用 VSCode terminal，并写出 `go run` 命令；Go 文件执行 `go run <file>`，Go package 执行 `go run .`。
 - 调试使用官方 Go debug adapter 兼容配置：`type: "go"`、`request: "launch"`、`mode: "debug"`。
@@ -51,6 +54,7 @@
 - 在 Run and Debug group 节点上点击 run 图标，批量运行组内所有 runnable。
 - 在 Run and Debug runnable 或 group 节点上点击 stop/restart 图标，停止或重启运行中的 terminal。
 - 在 Run and Debug runnable 节点点击 inline remove 图标，移除列表项但不删除真实文件。
+- 拖动 runnable 到 group 中完成归档；拖到列表根层级移出 group。
 - 在普通 Go 文件的 `func main` 上点击 Run Main / Debug Main CodeLens。
 - 在 Run and Debug runnable 节点右键执行编辑、删除、打开目标和复制路径。
 - 运行目标会保存到 workspace settings，重启插件后仍可恢复。
@@ -80,6 +84,8 @@ npm run lint
 - 点击 scan 按钮，确认只出现 `package main` 且声明 `func main(...)` 的非 `_test.go` Go 文件，并能批量加入列表。
 - 点击 Open File，确认编辑器跳转到 `func main` 所在位置。
 - 运行项目后点击 Stop，确认对应 terminal 被关闭；点击 Restart，确认 terminal 关闭后重新运行。
+- 运行或调试项目后确认节点图标变色，按钮从 Run/Debug 切换为 Restart/Stop。
+- 将 runnable 拖入 group，再拖回根层级，确认归档状态正确持久化。
 - 打开包含 `package main` 和 `func main` 的普通 Go 文件，确认 main 函数上显示 Run Main / Debug Main CodeLens。
 
 ## 已知边界

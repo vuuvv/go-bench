@@ -428,72 +428,72 @@
         },
         {
           "command": "goBench.runnables.run",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableStopped",
           "group": "inline@0"
         },
         {
           "command": "goBench.runnables.debug",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableStopped",
           "group": "inline@1"
         },
         {
           "command": "goBench.runnables.stop",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
           "group": "inline@2"
         },
         {
           "command": "goBench.runnables.restart",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
           "group": "inline@3"
         },
         {
           "command": "goBench.runnables.reveal",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
           "group": "inline@4"
         },
         {
           "command": "goBench.runnables.remove",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
           "group": "inline@5"
         },
         {
           "command": "goBench.runnables.runGroup",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroup",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableGroupStopped || viewItem == goBenchRunnableGroupRunning)",
           "group": "inline@0"
         },
         {
           "command": "goBench.runnables.stopGroup",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroup",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroupRunning",
           "group": "inline@1"
         },
         {
           "command": "goBench.runnables.restartGroup",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroup",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroupRunning",
           "group": "inline@2"
         },
         {
           "command": "goBench.runnables.edit",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
           "group": "navigation@0"
         },
         {
           "command": "goBench.runnables.moveToGroup",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
           "group": "navigation@1"
         },
         {
           "command": "goBench.runnables.remove",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
           "group": "navigation@2"
         },
         {
           "command": "goBench.runnables.copyPath",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
           "group": "navigation@3"
         },
         {
           "command": "goBench.runnables.removeGroup",
-          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroup",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableGroupStopped || viewItem == goBenchRunnableGroupRunning)",
           "group": "navigation@0"
         },
         {
