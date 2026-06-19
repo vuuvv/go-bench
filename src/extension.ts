@@ -19,6 +19,7 @@ import { GoTestCodeLensProvider } from './codelens';
 import { buildGoTestDebugConfiguration, type GoTestDebugConfiguration } from './debugger';
 import { isGoTestFile } from './parser';
 import type { GoTestRunTarget } from './runner';
+import { registerGoBenchSidebar } from './sidebar';
 import { GoBenchTestingApiPrototypeManager } from './testing';
 import { GoBenchCodeLensTestResults } from './testResults';
 import { normalizeTableTestConfig, shouldShowGoBenchTestExplorer } from './tableTestConfig';
@@ -176,6 +177,12 @@ export function activate(context: vscode.ExtensionContext): void {
     commands.toggleTestTreeModeFromStandardGo,
     toggleTestTreeMode
   );
+  const sidebarRegistration = registerGoBenchSidebar({
+    output: outputChannel,
+    refreshTests: async () => {
+      await vscode.commands.executeCommand(commands.refreshTestTree);
+    }
+  });
 
   const codeLensRegistration = vscode.languages.registerCodeLensProvider(
     { language: 'go', scheme: 'file', pattern: '**/*_test.go' },
@@ -210,6 +217,7 @@ export function activate(context: vscode.ExtensionContext): void {
     toggleTestTreeModeCommand,
     toggleTestTreeModeFromGoBenchCommand,
     toggleTestTreeModeFromStandardGoCommand,
+    sidebarRegistration,
     goTestCodeLensProvider,
     testingApiPrototype,
     codeLensRegistration,

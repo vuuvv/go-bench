@@ -20,7 +20,39 @@ export const commands = {
   /** Test Explorer 标题区：当前为 Go Bench 树，点击切换到标准 Go 树。 */
   toggleTestTreeModeFromGoBench: 'goBench.toggleTestTreeModeFromGoBench',
   /** Test Explorer 标题区：当前为标准 Go 树，点击切换到 Go Bench 树。 */
-  toggleTestTreeModeFromStandardGo: 'goBench.toggleTestTreeModeFromStandardGo'
+  toggleTestTreeModeFromStandardGo: 'goBench.toggleTestTreeModeFromStandardGo',
+  /** Go Bench 侧边栏 Files 视图标题区刷新入口。 */
+  refreshSidebarFiles: 'goBench.sidebar.refreshFiles',
+  /** Go Bench 侧边栏 Tests 视图标题区刷新入口。 */
+  refreshSidebarTests: 'goBench.sidebar.refreshTests',
+  /** 打开 Go Bench Files 视图中的文件。 */
+  openSidebarFile: 'goBench.sidebar.files.open',
+  /** 在 Go Bench Files 视图中新建文件。 */
+  newSidebarFile: 'goBench.sidebar.files.newFile',
+  /** 在 Go Bench Files 视图中新建文件夹。 */
+  newSidebarFolder: 'goBench.sidebar.files.newFolder',
+  /** 重命名 Go Bench Files 视图中的文件或文件夹。 */
+  renameSidebarFile: 'goBench.sidebar.files.rename',
+  /** 删除 Go Bench Files 视图中的文件或文件夹。 */
+  deleteSidebarFile: 'goBench.sidebar.files.delete',
+  /** 在系统文件管理器中显示 Go Bench Files 视图中的目标。 */
+  revealSidebarFile: 'goBench.sidebar.files.reveal',
+  /** 复制 Go Bench Files 视图中目标相对 workspace 的路径。 */
+  copySidebarRelativePath: 'goBench.sidebar.files.copyRelativePath',
+  /** 复制 Go Bench Files 视图中目标绝对路径。 */
+  copySidebarAbsolutePath: 'goBench.sidebar.files.copyAbsolutePath'
+} as const;
+
+/** Go Bench 侧边栏贡献的 view container 和 view ID。 */
+export const sidebarViewIds = {
+  /** Activity Bar 中的 Go Bench 容器。 */
+  container: 'goBench.sidebar',
+  /** 文件视图，里程碑 13 会接入 workspace 文件树。 */
+  files: 'goBench.sidebar.files',
+  /** 测试视图，里程碑 14 会映射当前 Testing API 树模型。 */
+  tests: 'goBench.sidebar.tests',
+  /** 运行与调试视图，里程碑 15 会接入 runnable 列表。 */
+  runAndDebug: 'goBench.sidebar.runAndDebug'
 } as const;
 
 /** VSCode when-clause context keys，用于让 Test Explorer 标题区显示当前树模式的图标按钮。 */
@@ -47,7 +79,15 @@ export const configurationKeys = {
   /** 是否启用实验性的 VSCode Testing API 测试树原型。 */
   testingApiEnabled: 'goBench.tableTests.testingApi.enabled',
   /** Testing API 测试树展示模式。 */
-  testingApiTreeMode: 'goBench.tableTests.testingApi.treeMode'
+  testingApiTreeMode: 'goBench.tableTests.testingApi.treeMode',
+  /** 是否启用 Go Bench 侧边栏。 */
+  sidebarEnabled: 'goBench.sidebar.enabled',
+  /** 是否启用 Go Bench 侧边栏 Files 视图。 */
+  sidebarFilesEnabled: 'goBench.sidebar.files.enabled',
+  /** 是否启用 Go Bench 侧边栏 Tests 视图。 */
+  sidebarTestsEnabled: 'goBench.sidebar.tests.enabled',
+  /** 是否启用 Go Bench 侧边栏 Run and Debug 视图。 */
+  sidebarRunnablesEnabled: 'goBench.sidebar.runnables.enabled'
 } as const;
 
 /** 官方 Go 扩展的 Test Explorer 开关，用于和 Go Bench 测试树互斥显示。 */
@@ -61,4 +101,12 @@ export const defaultTableTestConfig = {
   showCaseRun: true,
   testingApiEnabled: true,
   testingApiTreeMode: 'goBench'
+} as const;
+
+/** 侧边栏里程碑 12 的默认配置。 */
+export const defaultSidebarConfig = {
+  enabled: true,
+  filesEnabled: true,
+  testsEnabled: true,
+  runnablesEnabled: true
 } as const;

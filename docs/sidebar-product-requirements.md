@@ -1,0 +1,550 @@
+# Go Bench 侧边栏产品需求文档
+
+## 1. 产品概述
+
+Go Bench 需要新增一个独立的 VSCode 侧边栏工作台，将项目文件、Go 测试和可运行文件管理收敛到同一个插件入口中。
+
+新侧边栏应尽量贴近 VSCode 原生资源管理器的使用体验：左侧 Activity Bar 中提供 Go Bench 入口，打开后在侧边栏中展示三个核心功能视图：
+
+- 文件：提供与 VSCode 原生资源管理器一致或高度接近的文件浏览与管理体验。
+- 测试：承接当前项目已经实现的 Test Explorer 能力，展示 Go module、package、测试文件、测试函数和 table case。
+- 运行与调试：提供可管理的可运行文件列表，用户可以添加、删除、运行或调试列表项。
+
+该侧边栏的核心定位不是替代 VSCode，而是为 Go 项目提供一个更聚焦的工作台，让开发者在同一处完成“找文件、跑测试、运行程序、进入调试”的高频动作。
+
+重要边界：文件、测试、运行与调试这三个功能视图必须位于 Go Bench 自己贡献的 Activity Bar 容器中。插件不得把这些视图挂载到 VSCode 原有资源管理器 Explorer 侧边栏中，也不得要求用户从原有 Explorer 入口进入这些 Go Bench 功能。
+
+## 2. 背景
+
+当前 Go Bench 已经具备 Go table-driven tests 的识别、CodeLens 运行入口、VSCode Testing API 测试树、Test Results 输出和 Go test debug 能力。
+
+这些能力分散在编辑器 CodeLens、VSCode Test Explorer、命令面板和 Output/Test Results 视图中。对于用户来说，测试能力已经有了，但入口不够集中；运行普通 Go 文件或项目内可执行入口时，还需要手动打开文件、输入命令或维护 launch 配置。
+
+新的侧边栏希望把这些能力组织成一个清晰、稳定、可扩展的 Go Bench 工作区。
+
+## 3. 产品目标
+
+- 在 Activity Bar 中新增 Go Bench 侧边栏入口。
+- 侧边栏内提供文件、测试、运行与调试三个功能视图。
+- 文件、测试、运行与调试三个视图必须只贡献到 Go Bench 自己的 Activity Bar 容器，不侵入 VSCode 原有 Explorer 资源管理器侧边栏。
+- 文件视图尽量保持与 VSCode 原生 Explorer 一致的视觉、交互和行为。
+- 测试视图复用现有 Go Bench Test Explorer 的识别、运行、调试和结果展示能力。
+- 运行与调试视图支持用户维护可运行文件列表，并可直接执行 run/debug。
+- 保持对官方 Go 插件和 VSCode 原生命令的复用，不重新实现 Go 工具链。
+- 为后续 coverage、任务模板、launch 配置同步和项目级运行目标留下扩展点。
+
+## 4. 当前阶段非目标
+
+- 不替代 VSCode 原生 Explorer、Search、Source Control、Run and Debug 等内置工作台。
+- 不实现完整 IDE 级项目系统。
+- 不自动推断所有可执行入口并强制加入列表。
+- 不修改用户源码。
+- 不要求第一阶段支持复杂 task 编排、容器运行、远程调试或多进程调试。
+- 不把测试运行器改造成自定义 Go 测试框架，仍复用标准 `go test`、官方 Go 插件和 VSCode Testing API。
+
+## 5. 目标用户
+
+- 使用 VSCode 开发 Go 项目的后端工程师。
+- 经常在文件、测试、运行、调试之间切换的开发者。
+- 维护大量 Go table-driven tests，希望在插件侧边栏中集中查看和运行测试的团队。
+- 希望把常用 `main.go`、命令入口或脚本入口固定到可运行列表中的开发者。
+
+## 6. 核心用户故事
+
+- 作为 Go 开发者，我希望在 Go Bench 侧边栏中看到项目文件树，这样可以不用离开插件工作台就能打开或管理文件。
+- 作为 Go 开发者，我希望在同一个侧边栏中查看当前项目的测试树，这样可以快速运行或调试测试函数和 table case。
+- 作为 Go 开发者，我希望把常用可运行文件加入列表，这样可以一键运行或调试，而不是反复输入命令。
+- 作为 Go 开发者，我希望可以删除、重命名或调整可运行列表项，这样列表能保持干净。
+- 作为 Go 开发者，我希望运行或调试失败时能看到清晰错误和原始输出，方便快速定位环境或命令问题。
+
+## 7. 信息架构
+
+### 7.1 Activity Bar 入口
+
+插件应贡献一个新的 VSCode Activity Bar 容器：
+
+- 展示名称：`Go Bench`
+- 推荐图标：复用插件图标或使用简化的 workbench/test 风格图标。
+- 容器内默认包含三个 view：
+  - `Files`
+  - `Tests`
+  - `Run and Debug`
+
+视图顺序必须固定为：
+
+1. 文件
+2. 测试
+3. 运行与调试
+
+### 7.2 独立侧边栏边界
+
+Go Bench 侧边栏必须是一个新的 Activity Bar 入口，而不是 VSCode 原有 Explorer 资源管理器侧边栏中的子视图。
+
+必须满足：
+
+- `Files`、`Tests`、`Run and Debug` 三个 view 只挂载在 Go Bench 自己的 view container 下。
+- 不向 VSCode 原有 `Explorer` / `资源管理器` 容器贡献这三个 view。
+- 不在原有 Explorer 的标题区或文件节点右键菜单中加入这三个功能的主入口。
+- 用户点击 Activity Bar 中的 `Go Bench` 图标后，才进入 Go Bench 自己的侧边栏工作台。
+- Go Bench 的文件视图可以复用 VSCode 原生命令和文件系统 API，但不能依赖原有 Explorer 作为承载容器。
+
+验收时应通过 manifest 契约检查确认：Go Bench 的三个 view 只出现在 `goBench.sidebar` 容器下，不能出现在 `explorer` 或其他 VSCode 内置容器下。
+
+### 7.3 视图折叠行为
+
+- 三个视图应支持 VSCode 标准的展开、折叠和标题区操作。
+- 默认展开策略：
+  - 文件：展开。
+  - 测试：展开。
+  - 运行与调试：展开。
+- 用户手动折叠状态应由 VSCode 保持。
+
+## 8. 功能需求
+
+### 8.1 文件视图
+
+文件视图目标是提供与 VSCode 原生资源管理器一致或高度接近的文件管理体验。
+
+第一阶段必须支持：
+
+- 展示当前 workspace 的文件树。
+- 支持 multi-root workspace，每个 workspace folder 作为根节点。
+- 文件和目录使用 VSCode 当前主题对应的 file icon / folder icon。
+- 点击文件时在编辑器中打开该文件。
+- 点击目录时展开或折叠目录。
+- 支持刷新文件树。
+- 支持新建文件。
+- 支持新建文件夹。
+- 支持重命名文件或文件夹。
+- 支持删除文件或文件夹，并遵循 VSCode 的删除确认行为。
+- 支持在系统文件管理器中 reveal 文件或目录。
+- 支持复制相对路径和绝对路径。
+- 文件变化时自动刷新，包括新增、删除、重命名和保存。
+
+文件视图应尽量复用 VSCode 原生命令和行为：
+
+- 打开文件使用 VSCode 文本编辑器 API。
+- 新建、重命名、删除等文件操作优先调用 VSCode workspace/fs API 或内置命令。
+- 如果 VSCode 扩展 API 不允许直接嵌入原生 Explorer，则实现一个体验等价的文件树，而不是强依赖不可用能力。
+
+第一阶段可选支持：
+
+- 文件过滤输入框。
+- 按 `.gitignore` 隐藏文件。
+- 拖拽移动文件。
+- 对当前编辑器文件执行 reveal in Go Bench Files。
+- 和 VSCode 原生 Explorer 保持展开状态同步。
+
+明确不支持：
+
+- 第一阶段不实现 Git 状态装饰的完整复刻。
+- 第一阶段不实现复杂搜索和替换。
+- 第一阶段不实现 Explorer 所有扩展贡献菜单的完整兼容。
+
+### 8.2 测试视图
+
+测试视图应承接当前项目中已经实现的 Go Bench Test Explorer 能力，并迁移或同步到 Go Bench 侧边栏内。
+
+测试树结构应继续保持：
+
+```text
+Go Bench
+└── module path
+    └── package / relative directory
+        └── _test.go file
+            └── TestXxx
+                ├── table case
+                └── table case
+```
+
+第一阶段必须支持：
+
+- 展示 Go module、package/directory、测试文件、测试函数和可解析 table case。
+- 支持 workspace 全量刷新。
+- 支持当前文件刷新。
+- 支持从测试函数节点运行整个测试函数。
+- 支持从 table case 节点运行单个 case。
+- 支持从测试函数节点调试整个测试函数。
+- 支持从 table case 节点调试单个 case。
+- 支持测试运行状态展示，包括 running、passed、failed、skipped 和 errored。
+- 支持失败信息和原始输出进入 VSCode Test Results。
+- 支持与现有 `goBench.tableTests.testingApi.treeMode` 行为兼容。
+
+测试视图应复用现有能力：
+
+- 复用 parser 识别 Go table-driven tests。
+- 复用 runner 构造 `go test -run`。
+- 复用 debug 配置构造。
+- 复用 Testing API 或同源测试树模型，避免侧边栏测试树和 Test Explorer 测试树出现不同结果。
+
+第一阶段可选支持：
+
+- 在侧边栏测试节点标题区显示 run/debug inline icon。
+- 提供 collapse all。
+- 提供仅显示失败测试的过滤模式。
+- 支持从失败结果跳转到源码位置。
+
+明确不支持：
+
+- 不重新设计一套与 VSCode Testing API 无关的测试状态系统。
+- 不支持动态生成且无法静态解析的 table case。
+- 不支持第一阶段 coverage profile。
+
+### 8.3 运行与调试视图
+
+运行与调试视图用于管理用户主动添加的可运行文件或运行目标。
+
+#### 8.3.1 列表项模型
+
+每个列表项至少包含：
+
+- `id`：稳定唯一 ID。
+- `label`：展示名称，默认使用文件名或目录名。
+- `uri`：目标文件或目录路径。
+- `workspaceFolder`：所属 workspace。
+- `kind`：目标类型，例如 `goFile`、`goPackage`、`customCommand`。
+- `cwd`：运行工作目录。
+- `args`：运行参数。
+- `env`：可选环境变量。
+- `createdAt` / `updatedAt`：用于后续排序和维护。
+
+第一阶段推荐优先支持：
+
+- Go 文件：例如 `main.go`，运行时使用 `go run <file>`。
+- Go package 目录：运行时使用 `go run .`。
+
+后续可扩展：
+
+- 自定义命令。
+- npm script、Makefile target、task、launch configuration。
+- 最近运行记录。
+
+#### 8.3.2 添加列表项
+
+必须提供以下添加方式：
+
+- 从当前打开文件添加。
+- 从文件选择器添加。
+- 从目录选择器添加 package 入口。
+- 从文件视图右键菜单添加。
+
+添加时行为：
+
+- 如果目标已经存在，应提示用户是否更新已有列表项，而不是重复添加。
+- 默认 label 使用文件名；用户可以编辑 label。
+- 默认 cwd 使用文件所在目录或 package 目录。
+- 对 Go 文件应检查是否是可运行入口；如果不是 `package main`，允许添加但需要提示运行可能失败。
+
+#### 8.3.3 删除列表项
+
+必须支持：
+
+- 从列表项 inline action 删除。
+- 从右键菜单删除。
+- 删除前提示确认。
+- 删除只影响 Go Bench 管理的列表，不删除真实文件。
+
+#### 8.3.4 编辑列表项
+
+必须支持：
+
+- 修改展示名称。
+- 修改运行参数。
+- 修改工作目录。
+- 修改环境变量。
+
+第一阶段可先通过 quick input / settings JSON 完成编辑，不要求复杂表单 UI。
+
+#### 8.3.5 运行列表项
+
+每个列表项必须提供 run 按钮。
+
+Go 文件运行行为：
+
+```sh
+go run <file>
+```
+
+Go package 运行行为：
+
+```sh
+go run .
+```
+
+运行要求：
+
+- 在 VSCode terminal 中执行，方便用户交互输入。
+- terminal 名称应包含 `Go Bench` 和列表项 label。
+- 运行前清晰展示实际执行命令。
+- 支持传入用户配置的 args 和 env。
+- 命令失败时保留 terminal 输出。
+
+#### 8.3.6 调试列表项
+
+每个列表项必须提供 debug 按钮。
+
+调试要求：
+
+- 优先复用官方 Go 插件 debug adapter。
+- Go 文件调试配置使用 `type: "go"`、`request: "launch"`、`mode: "debug"`。
+- Go package 调试配置的 `program` 指向 package 目录。
+- 支持传入 args、env 和 cwd。
+- 调试启动失败时显示错误，并写入 `Go Bench` output channel。
+
+#### 8.3.7 列表持久化
+
+第一阶段列表应持久化到 workspace 级配置或插件管理文件中。
+
+推荐方案：
+
+- 默认使用 workspace scope 的 VSCode configuration，便于随 workspace 保存。
+- 后续如列表结构变复杂，可迁移到 `.vscode/go-bench-runnables.json`。
+
+持久化要求：
+
+- 不因为插件重启丢失列表。
+- 不把用户本地绝对路径错误写入跨机器共享配置，除非该路径确实在 workspace 外部。
+- multi-root workspace 中必须保存所属 workspace 信息。
+
+## 9. 命令与配置
+
+### 9.1 命令
+
+建议新增命令：
+
+```json
+{
+  "goBench.sidebar.refreshFiles": "Go Bench: Refresh Files",
+  "goBench.sidebar.refreshTests": "Go Bench: Refresh Tests",
+  "goBench.runnables.addCurrentFile": "Go Bench: Add Current File to Run and Debug",
+  "goBench.runnables.addFile": "Go Bench: Add File to Run and Debug",
+  "goBench.runnables.addPackage": "Go Bench: Add Package to Run and Debug",
+  "goBench.runnables.remove": "Go Bench: Remove Runnable",
+  "goBench.runnables.edit": "Go Bench: Edit Runnable",
+  "goBench.runnables.run": "Go Bench: Run Runnable",
+  "goBench.runnables.debug": "Go Bench: Debug Runnable",
+  "goBench.runnables.reveal": "Go Bench: Reveal Runnable"
+}
+```
+
+现有命令应继续可用：
+
+- `goBench.runTest`
+- `goBench.debugTest`
+- `goBench.refreshTestTree`
+- `goBench.refreshCurrentFileTestTree`
+- `goBench.toggleTestTreeMode`
+
+### 9.2 配置
+
+建议新增配置：
+
+```json
+{
+  "goBench.sidebar.enabled": true,
+  "goBench.sidebar.files.enabled": true,
+  "goBench.sidebar.tests.enabled": true,
+  "goBench.sidebar.runnables.enabled": true,
+  "goBench.runnables.items": [],
+  "goBench.runnables.defaultRunInTerminal": true
+}
+```
+
+后续可扩展配置：
+
+```json
+{
+  "goBench.sidebar.files.exclude": [],
+  "goBench.sidebar.files.respectGitignore": true,
+  "goBench.runnables.defaultEnv": {},
+  "goBench.runnables.terminalReuseMode": "perItem",
+  "goBench.runnables.autoDetectMainPackages": false
+}
+```
+
+## 10. 产品行为细节
+
+### 10.1 空状态
+
+文件视图空状态：
+
+- 没有打开 workspace 时显示提示：打开一个 workspace 后查看文件。
+
+测试视图空状态：
+
+- 没有发现 Go 测试文件时显示提示：未发现 `_test.go` 文件。
+- 找不到有效 `go.mod` 时显示提示，并在 output channel 写入诊断。
+
+运行与调试空状态：
+
+- 没有列表项时显示添加入口。
+- 推荐首要操作：添加当前文件。
+
+### 10.2 节点操作
+
+文件节点：
+
+- 文件：打开、重命名、删除、复制路径、在系统文件管理器中显示、添加到运行与调试。
+- 目录：展开、折叠、新建文件、新建文件夹、重命名、删除、添加为 Go package 运行目标。
+
+测试节点：
+
+- module/package/file：刷新、运行集合。
+- 测试函数：运行、调试、打开源码。
+- table case：运行、调试、打开源码。
+
+运行与调试节点：
+
+- 打开目标。
+- 运行。
+- 调试。
+- 编辑。
+- 删除。
+- 复制路径。
+
+### 10.3 图标和按钮
+
+- run 使用 VSCode codicon `play`。
+- debug 使用 `debug-alt` 或 VSCode 推荐 debug codicon。
+- refresh 使用 `refresh`。
+- add 使用 `add`。
+- remove 使用 `trash`。
+- edit 使用 `edit`。
+- reveal 使用 `go-to-file` 或 `folder-opened`。
+
+按钮必须提供 hover title，避免只有图标造成误解。
+
+### 10.4 错误处理
+
+- 文件操作失败时展示 VSCode error message，并保留详细错误到 output channel。
+- 测试解析失败时不打扰用户，除非用户主动刷新或运行。
+- 运行目标缺失时，提示用户从列表中移除或重新定位。
+- Go 工具链不可用时，运行和调试都应提示检查 Go 安装和 PATH。
+- Debug adapter 缺失时，提示安装或启用官方 Go 插件。
+
+## 11. 技术要求
+
+### 11.1 架构建议
+
+推荐新增模块：
+
+- `sidebar`：注册 Go Bench view container 和三个 view。
+- `fileExplorer`：文件树数据提供、文件操作、文件系统监听。
+- `testSidebar`：复用 Testing API 树模型，映射为侧边栏测试视图。
+- `runnables`：可运行列表的数据模型、持久化、添加、编辑和删除。
+- `runnableRunner`：构造并执行 `go run` terminal 命令。
+- `runnableDebugger`：构造 Go debug configuration。
+
+已有模块应继续复用：
+
+- `parser`
+- `runner`
+- `debugger`
+- `testingTargets`
+- `testing`
+- `goModule`
+- `testResults`
+
+### 11.2 数据一致性
+
+- 测试视图不能重新实现一套独立 parser。
+- CodeLens、Test Explorer 和新侧边栏测试视图必须使用同源测试目标数据。
+- 运行与调试列表项中的路径应在 workspace folder 重命名或移动后尽量保持可恢复。
+- 文件系统 watcher 应做 debounce，避免大量文件变化导致侧边栏频繁刷新。
+
+### 11.3 性能要求
+
+- 文件视图应懒加载目录节点，避免打开大型仓库时阻塞 extension host。
+- 测试刷新应复用已有 workspace 扫描策略。
+- 普通目录展开应在 100ms 内返回可见节点，超大目录可延迟加载。
+- 所有长耗时操作必须异步执行。
+
+### 11.4 测试覆盖要求
+
+必须补充自动化测试覆盖：
+
+- Activity Bar/view contribution 的 manifest 契约。
+- Go Bench 三个 view 只贡献到独立 `goBench.sidebar` 容器，不能贡献到 VSCode 原有 Explorer 容器。
+- 文件树节点构造。
+- multi-root workspace 的文件根节点。
+- 文件 exclude 配置。
+- 测试树数据复用和节点映射。
+- runnable 添加、重复添加、删除和编辑。
+- runnable 持久化和恢复。
+- `go run <file>` 命令构造。
+- `go run .` 命令构造。
+- runnable debug configuration 构造。
+- 缺失文件、非 Go 文件、非 `package main` 的提示行为。
+
+手动验证必须覆盖：
+
+- 新侧边栏入口在 Activity Bar 中可见。
+- 文件视图可以打开、新建、重命名和删除文件。
+- 测试视图可以运行和调试测试函数及 table case。
+- 运行与调试视图可以添加当前文件、运行、调试和删除列表项。
+
+## 12. UX 要求
+
+- 侧边栏应看起来像 VSCode 原生视图，而不是网页式控制台。
+- 列表项高度、图标、hover action 和 context menu 应遵循 VSCode 习惯。
+- 三个视图的信息密度应接近 Explorer/Test Explorer，不使用大卡片布局。
+- 运行和调试按钮必须靠近对应目标。
+- 删除列表项必须明确不会删除真实文件。
+- 错误提示要短，详细诊断写入 output channel。
+- 用户没有 Go 项目或没有测试时，空状态应安静，不持续弹窗。
+
+## 13. 验收标准
+
+第一阶段完成需满足：
+
+- Activity Bar 中出现 Go Bench 侧边栏入口。
+- Go Bench 侧边栏中按顺序展示文件、测试、运行与调试三个视图。
+- 文件、测试、运行与调试三个视图不出现在 VSCode 原有资源管理器 Explorer 侧边栏中。
+- 文件视图可浏览 workspace 文件，并可打开文件。
+- 文件视图支持新建、重命名、删除和刷新。
+- 测试视图展示与当前 Go Bench Test Explorer 一致的测试树。
+- 测试视图支持运行和调试测试函数。
+- 测试视图支持运行和调试可解析 table case。
+- 运行与调试视图可以添加当前 Go 文件。
+- 运行与调试视图可以删除列表项，且不删除真实文件。
+- 点击 runnable 的 run 按钮可以在 terminal 中执行目标。
+- 点击 runnable 的 debug 按钮可以启动 Go debug session。
+- 插件重启后 runnable 列表仍然存在。
+- multi-root workspace 下文件、测试和 runnable 都能正确标识所属 workspace。
+- 自动化测试覆盖关键数据模型、命令构造和 manifest contribution。
+- 对应里程碑文档记录实现范围、验证命令、手动验证步骤和已知问题。
+
+## 14. 建议里程碑
+
+### 14.1 里程碑 12：侧边栏框架
+
+- 新增 Go Bench Activity Bar view container。
+- 注册 Files、Tests、Run and Debug 三个空视图。
+- 完成 manifest、命令和配置契约测试。
+
+### 14.2 里程碑 13：文件视图
+
+- 实现 workspace 文件树。
+- 支持打开、刷新、新建、重命名和删除。
+- 支持 multi-root workspace。
+
+### 14.3 里程碑 14：测试视图迁移
+
+- 将现有 Test Explorer 树模型映射到 Go Bench 侧边栏测试视图。
+- 保持 run/debug/Test Results 行为一致。
+- 补充测试视图刷新和状态同步。
+
+### 14.4 里程碑 15：运行与调试列表
+
+- 实现 runnable 数据模型和持久化。
+- 支持添加当前文件、添加文件、添加 package。
+- 支持 run/debug/delete/edit。
+- 补充命令构造、debug 配置和持久化测试。
+
+## 15. 待确认问题
+
+- 文件视图是否必须完全替代 VSCode 原生 Explorer，还是只需要在 Go Bench 侧边栏中提供高频文件操作。
+- runnable 列表第一阶段是否只支持 Go 目标，还是需要同时支持任意 shell command。
+- runnable 配置应默认保存到 workspace settings，还是保存到 `.vscode/go-bench-runnables.json`。
+- 测试视图是否需要和 VSCode 原生 Test Explorer 双向同步选择和展开状态。
+- 运行与调试是否需要自动扫描 `package main` 并推荐加入列表。
