@@ -54,13 +54,28 @@
       {
         "command": "goBench.toggleTestTreeMode",
         "title": "Go Bench: Toggle Test Tree Mode"
+      },
+      {
+        "command": "goBench.toggleTestTreeModeFromGoBench",
+        "title": "Go Bench Tree Active: Switch to Standard Go Tree",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "goBench.toggleTestTreeModeFromStandardGo",
+        "title": "Standard Go Tree Active: Switch to Go Bench Tree",
+        "icon": "$(symbol-method)"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "goBench.toggleTestTreeMode",
-          "when": "view == workbench.view.testing",
+          "command": "goBench.toggleTestTreeModeFromGoBench",
+          "when": "view == workbench.view.testing && goBench.testTreeMode.goBench",
+          "group": "navigation"
+        },
+        {
+          "command": "goBench.toggleTestTreeModeFromStandardGo",
+          "when": "view == workbench.view.testing && goBench.testTreeMode.standardGo",
           "group": "navigation"
         }
       ]
@@ -108,7 +123,7 @@
             "standardGo"
           ],
           "default": "goBench",
-          "description": "Choose the Test Explorer tree mode. goBench includes table-driven cases; standardGo shows the standard Go function-level tree shape."
+          "description": "Choose the Test Explorer tree mode. goBench shows the Go Bench tree and hides the standard Go tree; standardGo shows the official Go tree and hides the Go Bench tree."
         }
       }
     }

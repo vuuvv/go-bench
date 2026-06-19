@@ -64,8 +64,8 @@
 ### 手动验证树模式切换
 
 - 用途：确认用户可以在 Go Bench 增强树和标准 Go 函数级树之间切换。
-- 入口：执行 `Go Bench: Toggle Test Tree Mode`，或点击 Testing 视图标题区的同名命令按钮。
-- 预期结果：`goBench.tableTests.testingApi.treeMode` 在 `goBench` 和 `standardGo` 之间切换；启用 Testing API 时测试树会自动刷新。
+- 入口：执行 `Go Bench: Toggle Test Tree Mode`，或点击 Testing 视图标题区表示当前树模式的图标按钮。
+- 预期结果：`goBench.tableTests.testingApi.treeMode` 在 `goBench` 和 `standardGo` 之间切换；标题区图标和 hover 标题显示当前树模式；启用 Testing API 时测试树会自动刷新。
 - 失败优先检查：配置是否写入 workspace settings、Testing 视图标题区按钮是否被当前 VSCode 版本展示。
 
 ## 测试记录

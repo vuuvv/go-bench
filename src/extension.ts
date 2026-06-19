@@ -8,14 +8,20 @@
 
 import { dirname } from 'node:path';
 import * as vscode from 'vscode';
-import { commands, configurationKeys, outputChannelName } from './constants';
+import {
+  commands,
+  configurationKeys,
+  contextKeys,
+  outputChannelName,
+  standardGoTestExplorerConfigurationKey
+} from './constants';
 import { GoTestCodeLensProvider } from './codelens';
 import { buildGoTestDebugConfiguration, type GoTestDebugConfiguration } from './debugger';
 import { isGoTestFile } from './parser';
 import type { GoTestRunTarget } from './runner';
 import { GoBenchTestingApiPrototypeManager } from './testing';
 import { GoBenchCodeLensTestResults } from './testResults';
-import { normalizeTableTestConfig } from './tableTestConfig';
+import { normalizeTableTestConfig, shouldShowGoBenchTestExplorer } from './tableTestConfig';
 
 /**
  * 激活扩展并注册当前阶段的基础能力。
@@ -82,7 +88,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const goTestCodeLensProvider = new GoTestCodeLensProvider({ output: outputChannel });
   const testingApiPrototype = new GoBenchTestingApiPrototypeManager({ output: outputChannel });
-  testingApiPrototype.setEnabled(readTestingApiEnabledFromWorkspace());
+  void applyTestExplorerTreeVisibility(testingApiPrototype, outputChannel);
 
   const refreshTestTreeCommand = vscode.commands.registerCommand(commands.refreshTestTree, async () => {
     outputChannel.show(true);
@@ -93,7 +99,14 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
 
-    testingApiPrototype.setEnabled(true);
+    const shouldShowGoBenchTree = await applyTestExplorerTreeVisibility(testingApiPrototype, outputChannel);
+    if (!shouldShowGoBenchTree) {
+      void vscode.window.showInformationMessage(
+        'Go Bench: switch Test Explorer tree mode to goBench before refreshing the Go Bench tree.'
+      );
+      return;
+    }
+
     const refreshed = await testingApiPrototype.refreshWorkspace();
     void vscode.window.showInformationMessage(`Go Bench: refreshed Test Explorer tree from ${refreshed} Go test file(s).`);
   });
@@ -115,7 +128,14 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      testingApiPrototype.setEnabled(true);
+      const shouldShowGoBenchTree = await applyTestExplorerTreeVisibility(testingApiPrototype, outputChannel);
+      if (!shouldShowGoBenchTree) {
+        void vscode.window.showInformationMessage(
+          'Go Bench: switch Test Explorer tree mode to goBench before refreshing the Go Bench tree.'
+        );
+        return;
+      }
+
       const refreshed = await testingApiPrototype.refreshFile(file);
       if (!refreshed) {
         void vscode.window.showErrorMessage('Go Bench: current file is not a Go test file.');
@@ -125,25 +145,37 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   );
 
-  const toggleTestTreeModeCommand = vscode.commands.registerCommand(commands.toggleTestTreeMode, async () => {
+  const toggleTestTreeMode = async (): Promise<void> => {
     const currentMode = readTestingApiTreeModeFromWorkspace();
     const nextMode = currentMode === 'goBench' ? 'standardGo' : 'goBench';
     await vscode.workspace.getConfiguration().update(configurationKeys.testingApiTreeMode, nextMode, vscode.ConfigurationTarget.Workspace);
     outputChannel.appendLine(`Go Bench Testing API tree mode: ${nextMode}.`);
 
-    if (readTestingApiEnabledFromWorkspace()) {
-      testingApiPrototype.setEnabled(true);
+    const shouldShowGoBenchTree = await applyTestExplorerTreeVisibility(testingApiPrototype, outputChannel);
+    if (shouldShowGoBenchTree) {
       const refreshed = await testingApiPrototype.refreshWorkspace();
       void vscode.window.showInformationMessage(
-        `Go Bench: switched Test Explorer to ${formatTestingApiTreeMode(nextMode)} and refreshed ${refreshed} Go test file(s).`
+        `Go Bench: switched Test Explorer to ${formatTestingApiTreeMode(nextMode)}, hid the standard Go tree, and refreshed ${refreshed} Go test file(s).`
       );
       return;
     }
 
-    void vscode.window.showInformationMessage(
-      `Go Bench: switched Test Explorer to ${formatTestingApiTreeMode(nextMode)}. Enable goBench.tableTests.testingApi.enabled to show it.`
-    );
-  });
+    const message =
+      nextMode === 'standardGo'
+        ? 'Go Bench: switched Test Explorer to the standard Go tree and hid the Go Bench tree.'
+        : `Go Bench: switched Test Explorer to ${formatTestingApiTreeMode(nextMode)}. Enable goBench.tableTests.testingApi.enabled to show it.`;
+    void vscode.window.showInformationMessage(message);
+  };
+
+  const toggleTestTreeModeCommand = vscode.commands.registerCommand(commands.toggleTestTreeMode, toggleTestTreeMode);
+  const toggleTestTreeModeFromGoBenchCommand = vscode.commands.registerCommand(
+    commands.toggleTestTreeModeFromGoBench,
+    toggleTestTreeMode
+  );
+  const toggleTestTreeModeFromStandardGoCommand = vscode.commands.registerCommand(
+    commands.toggleTestTreeModeFromStandardGo,
+    toggleTestTreeMode
+  );
 
   const codeLensRegistration = vscode.languages.registerCodeLensProvider(
     { language: 'go', scheme: 'file', pattern: '**/*_test.go' },
@@ -161,7 +193,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const configurationSubscription = vscode.workspace.onDidChangeConfiguration(event => {
     if (Object.values(configurationKeys).some(key => event.affectsConfiguration(key))) {
       goTestCodeLensProvider.refreshAll();
-      testingApiPrototype.setEnabled(readTestingApiEnabledFromWorkspace());
+      void applyTestExplorerTreeVisibility(testingApiPrototype, outputChannel);
       for (const document of vscode.workspace.textDocuments) {
         testingApiPrototype.refreshDocument(document);
       }
@@ -176,6 +208,8 @@ export function activate(context: vscode.ExtensionContext): void {
     refreshTestTreeCommand,
     refreshCurrentFileTestTreeCommand,
     toggleTestTreeModeCommand,
+    toggleTestTreeModeFromGoBenchCommand,
+    toggleTestTreeModeFromStandardGoCommand,
     goTestCodeLensProvider,
     testingApiPrototype,
     codeLensRegistration,
@@ -234,6 +268,17 @@ function readTestingApiEnabledFromWorkspace(): boolean {
   }).testingApiEnabled;
 }
 
+/** 当前配置是否应该显示 Go Bench 自己的 Test Explorer 树。 */
+function shouldShowGoBenchTestExplorerFromWorkspace(): boolean {
+  const configuration = vscode.workspace.getConfiguration();
+  const config = normalizeTableTestConfig({
+    enabled: configuration.get(configurationKeys.enabled),
+    testingApiEnabled: configuration.get(configurationKeys.testingApiEnabled),
+    testingApiTreeMode: configuration.get(configurationKeys.testingApiTreeMode)
+  });
+  return shouldShowGoBenchTestExplorer(config);
+}
+
 /** 从 VSCode 配置读取 Testing API 树模式。 */
 function readTestingApiTreeModeFromWorkspace(): 'goBench' | 'standardGo' {
   const configuration = vscode.workspace.getConfiguration();
@@ -244,6 +289,47 @@ function readTestingApiTreeModeFromWorkspace(): 'goBench' | 'standardGo' {
 
 function formatTestingApiTreeMode(mode: 'goBench' | 'standardGo'): string {
   return mode === 'goBench' ? 'Go Bench tree' : 'standard Go tree';
+}
+
+async function applyTestExplorerTreeVisibility(
+  testingApiPrototype: GoBenchTestingApiPrototypeManager,
+  outputChannel: vscode.OutputChannel
+): Promise<boolean> {
+  await updateTestExplorerTreeModeContext(readTestingApiTreeModeFromWorkspace());
+  const shouldShowGoBenchTree = shouldShowGoBenchTestExplorerFromWorkspace();
+  testingApiPrototype.setEnabled(shouldShowGoBenchTree);
+  await setStandardGoTestExplorerEnabled(!shouldShowGoBenchTree, outputChannel);
+  return shouldShowGoBenchTree;
+}
+
+async function updateTestExplorerTreeModeContext(mode: 'goBench' | 'standardGo'): Promise<void> {
+  await vscode.commands.executeCommand('setContext', contextKeys.testTreeModeGoBench, mode === 'goBench');
+  await vscode.commands.executeCommand('setContext', contextKeys.testTreeModeStandardGo, mode === 'standardGo');
+}
+
+async function setStandardGoTestExplorerEnabled(
+  enabled: boolean,
+  outputChannel: vscode.OutputChannel
+): Promise<void> {
+  const configuration = vscode.workspace.getConfiguration();
+  if (configuration.get(standardGoTestExplorerConfigurationKey) !== enabled) {
+    await configuration.update(
+      standardGoTestExplorerConfigurationKey,
+      enabled,
+      vscode.ConfigurationTarget.Workspace
+    );
+  }
+
+  if (enabled) {
+    const goExtension = vscode.extensions.getExtension('golang.go');
+    if (goExtension && !goExtension.isActive) {
+      try {
+        await goExtension.activate();
+      } catch (error) {
+        outputChannel.appendLine(`Go Bench: failed to activate the official Go extension test explorer: ${String(error)}`);
+      }
+    }
+  }
 }
 
 /**

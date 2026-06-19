@@ -95,10 +95,8 @@ Tree semantics:
 - Under each file are the `TestXxx` functions.
 - In `goBench` tree mode, resolvable table cases are shown below the function node.
 
-If you switch to `standardGo` tree mode, the tree still uses module, directory,
-file, and test function levels, but it does not expand Go Bench-specific table
-case nodes. This is closer to the official Go extension's function-level test
-tree.
+If you switch to `standardGo` tree mode, the `Go Bench` controller is hidden
+and the official Go extension's `Go` controller is shown instead.
 
 ## Commands
 
@@ -165,12 +163,14 @@ Behavior:
 
 Switches between the two Test Explorer tree modes:
 
-- `goBench`: the default mode. Shows table-driven case nodes.
-- `standardGo`: function-level mode. Does not show table case nodes.
+- `goBench`: the default mode. Shows the `Go Bench` enhanced tree and hides the official Go extension's `Go` tree.
+- `standardGo`: shows the official Go extension's `Go` tree and hides the `Go Bench` tree.
 
 The command writes the workspace setting
-`goBench.tableTests.testingApi.treeMode`. If Testing API integration is enabled,
-the test tree refreshes immediately.
+`goBench.tableTests.testingApi.treeMode` and syncs the official Go extension's
+`go.testExplorer.enable` setting. If Go Bench Testing API integration is
+enabled and the mode switches to `goBench`, the `Go Bench` tree refreshes
+immediately.
 
 This command is also contributed to the Testing view title area. If the button
 is not visible in your VSCode version or layout, run it from the command
@@ -238,9 +238,8 @@ Controls case-level run and debug entries.
 - `true`: shows `Run Case` / `Debug Case` for statically resolvable table cases, and shows case nodes in `goBench` tree mode.
 - `false`: keeps only function-level entries and hides table case entries.
 
-Note: `standardGo` tree mode does not expand table cases in Test Explorer even
-when this setting is `true`. CodeLens case visibility is still controlled by
-this setting.
+Note: `standardGo` tree mode uses the official Go extension's `Go` controller,
+so this setting only affects CodeLens and the `goBench` tree.
 
 ### `goBench.tableTests.testingApi.enabled`
 
@@ -257,8 +256,8 @@ Controls the Test Explorer tree mode.
 
 Allowed values:
 
-- `goBench`: the default. Shows the Go Bench enhanced tree, including resolvable table cases.
-- `standardGo`: shows a tree closer to the official Go extension's function-level tree and does not expand table cases.
+- `goBench`: the default. Shows the `Go Bench` enhanced tree, including resolvable table cases, and hides the official `Go` tree.
+- `standardGo`: shows the official Go extension's `Go` tree and hides the `Go Bench` tree.
 
 Example:
 

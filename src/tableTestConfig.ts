@@ -56,6 +56,13 @@ export function normalizeTableTestConfig(raw: RawTableTestConfig = {}): TableTes
   };
 }
 
+/** 判断当前设置是否应显示 Go Bench 自己的 Test Explorer controller。 */
+export function shouldShowGoBenchTestExplorer(
+  config: Pick<TableTestConfig, 'enabled' | 'testingApiEnabled' | 'testingApiTreeMode'>
+): boolean {
+  return config.enabled && config.testingApiEnabled && config.testingApiTreeMode === 'goBench';
+}
+
 function isTestingApiTreeMode(value: unknown): value is TestingApiTreeMode {
   return value === 'goBench' || value === 'standardGo';
 }

@@ -13,7 +13,7 @@ type ExtensionManifest = {
   main: string;
   activationEvents: string[];
   contributes: {
-    commands: Array<{ command: string; title: string }>;
+    commands: Array<{ command: string; title: string; icon?: string }>;
     menus?: {
       'view/title'?: Array<{ command: string; when?: string; group?: string }>;
     };
@@ -59,6 +59,16 @@ describe('VSCode extension manifest', () => {
       {
         command: commands.toggleTestTreeMode,
         title: 'Go Bench: Toggle Test Tree Mode'
+      },
+      {
+        command: commands.toggleTestTreeModeFromGoBench,
+        title: 'Go Bench Tree Active: Switch to Standard Go Tree',
+        icon: '$(beaker)'
+      },
+      {
+        command: commands.toggleTestTreeModeFromStandardGo,
+        title: 'Standard Go Tree Active: Switch to Go Bench Tree',
+        icon: '$(symbol-method)'
       }
     ]);
   });
@@ -66,8 +76,13 @@ describe('VSCode extension manifest', () => {
   it('contributes a Testing view title command for switching tree modes', () => {
     assert.deepEqual(manifest.contributes.menus?.['view/title'], [
       {
-        command: commands.toggleTestTreeMode,
-        when: 'view == workbench.view.testing',
+        command: commands.toggleTestTreeModeFromGoBench,
+        when: 'view == workbench.view.testing && goBench.testTreeMode.goBench',
+        group: 'navigation'
+      },
+      {
+        command: commands.toggleTestTreeModeFromStandardGo,
+        when: 'view == workbench.view.testing && goBench.testTreeMode.standardGo',
         group: 'navigation'
       }
     ]);

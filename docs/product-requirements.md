@@ -232,6 +232,7 @@ go test ./path/to/package -run '^TestName$/^case name$'
 - 推荐 Go Bench 层级：`Go Bench` -> `module path` -> `package` / `relative directory` -> `_test.go file` -> `TestXxx` -> `subtest` / `table case`。
 - 当 `goBench.tableTests.testingApi.enabled` 为 `true` 时，默认展示 Go Bench 树形结构，即包含可解析 table case 的增强测试树。
 - 插件应提供切换入口，允许用户在 Go Bench 增强测试树和更接近官方 Go 插件的标准函数级测试树之间切换；可通过 Test Explorer 按钮、命令或配置实现。
+- Test Explorer 标题区的树模式切换入口必须使用图标按钮，并通过图标和 hover 标题表达当前状态是 Go Bench 增强树还是标准 Go 树。
 - 标准 Go 测试树模式应保留 `Go Bench` -> `module path` -> `package` / `relative directory` -> `_test.go file` -> `TestXxx` 层级，但不展开 Go Bench 特有的 table case 节点。
 - 单文件刷新或当前文件扫描时，也必须把发现的测试合并到同一套结构节点中，不能为当前文件单独创建以 `TestXxx` 开头的根节点。
 - 不允许出现多个根元素直接就是 package、文件名、`TestNormalize`、`TestParse`、`TestXxx` 这类跳过 module 层级的结构。

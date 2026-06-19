@@ -5,7 +5,14 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { commands, configurationKeys, defaultTableTestConfig, outputChannelName } from '../src/constants';
+import {
+  commands,
+  configurationKeys,
+  contextKeys,
+  defaultTableTestConfig,
+  outputChannelName,
+  standardGoTestExplorerConfigurationKey
+} from '../src/constants';
 
 describe('extension skeleton constants', () => {
   it('uses the contributed no-op command id', () => {
@@ -15,10 +22,23 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.refreshTestTree, 'goBench.refreshTestTree');
     assert.equal(commands.refreshCurrentFileTestTree, 'goBench.refreshCurrentFileTestTree');
     assert.equal(commands.toggleTestTreeMode, 'goBench.toggleTestTreeMode');
+    assert.equal(commands.toggleTestTreeModeFromGoBench, 'goBench.toggleTestTreeModeFromGoBench');
+    assert.equal(commands.toggleTestTreeModeFromStandardGo, 'goBench.toggleTestTreeModeFromStandardGo');
+  });
+
+  it('defines Test Explorer tree mode context keys', () => {
+    assert.deepEqual(contextKeys, {
+      testTreeModeGoBench: 'goBench.testTreeMode.goBench',
+      testTreeModeStandardGo: 'goBench.testTreeMode.standardGo'
+    });
   });
 
   it('uses a stable output channel name', () => {
     assert.equal(outputChannelName, 'Go Bench');
+  });
+
+  it('tracks the official Go Test Explorer setting used for tree visibility', () => {
+    assert.equal(standardGoTestExplorerConfigurationKey, 'go.testExplorer.enable');
   });
 
   it('keeps table test defaults aligned with milestone 0 requirements', () => {

@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { defaultTableTestConfig } from '../src/constants';
-import { normalizeTableTestConfig } from '../src/tableTestConfig';
+import { normalizeTableTestConfig, shouldShowGoBenchTestExplorer } from '../src/tableTestConfig';
 
 describe('table test configuration normalization', () => {
   it('uses product defaults when raw values are absent', () => {
@@ -43,6 +43,35 @@ describe('table test configuration normalization', () => {
     assert.equal(
       normalizeTableTestConfig({ testingApiTreeMode: 'unknown' }).testingApiTreeMode,
       defaultTableTestConfig.testingApiTreeMode
+    );
+  });
+
+  it('shows the Go Bench Test Explorer only when the Go Bench tree mode is active', () => {
+    assert.equal(
+      shouldShowGoBenchTestExplorer({
+        enabled: true,
+        testingApiEnabled: true,
+        testingApiTreeMode: 'goBench'
+      }),
+      true
+    );
+
+    assert.equal(
+      shouldShowGoBenchTestExplorer({
+        enabled: true,
+        testingApiEnabled: true,
+        testingApiTreeMode: 'standardGo'
+      }),
+      false
+    );
+
+    assert.equal(
+      shouldShowGoBenchTestExplorer({
+        enabled: true,
+        testingApiEnabled: false,
+        testingApiTreeMode: 'goBench'
+      }),
+      false
     );
   });
 });

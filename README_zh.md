@@ -92,7 +92,7 @@ Go Bench
 - 文件下是 `TestXxx` 函数。
 - 在 `goBench` 树模式下，函数下继续显示可识别的 table case。
 
-如果切换到 `standardGo` 树模式，结构仍然按 module、目录、文件、测试函数组织，但不会展开 Go Bench 特有的 table case 节点，更接近官方 Go 插件的函数级测试树。
+如果切换到 `standardGo` 树模式，`Go Bench` controller 会被隐藏，并改为显示官方 Go 扩展的 `Go` controller。
 
 ## 命令
 
@@ -154,10 +154,10 @@ Go Bench
 
 在两种 Test Explorer 树模式之间切换：
 
-- `goBench`：默认模式，显示 table-driven case 节点。
-- `standardGo`：函数级模式，不显示 table case 节点。
+- `goBench`：默认模式，显示以 `Go Bench` 为根节点的增强树，并隐藏官方 Go 扩展的 `Go` 树。
+- `standardGo`：显示官方 Go 扩展以 `Go` 为根节点的标准树，并隐藏 `Go Bench` 树。
 
-命令会写入 workspace 设置 `goBench.tableTests.testingApi.treeMode`。如果 Testing API 已启用，会立即刷新测试树。
+命令会写入 workspace 设置 `goBench.tableTests.testingApi.treeMode`，并同步切换官方 Go 扩展的 `go.testExplorer.enable`。如果 Go Bench Testing API 已启用并切到 `goBench`，会立即刷新 `Go Bench` 测试树。
 
 该命令也贡献到 Testing 视图标题区；如果当前 VSCode 版本或布局没有显示按钮，可以从命令面板执行。
 
@@ -221,7 +221,7 @@ Go Bench
 - `true`：为可静态解析的 table case 显示 `Run Case` / `Debug Case`，并在 `goBench` 树模式下显示 case 节点。
 - `false`：只保留函数级入口，不显示 table case 入口。
 
-注意：`standardGo` 树模式即使该设置为 `true`，也不会在 Test Explorer 中展开 table case；CodeLens 是否显示 case 入口仍由该设置控制。
+注意：`standardGo` 树模式使用官方 Go 扩展的 `Go` controller，因此该设置只影响 CodeLens 和 `goBench` 树。
 
 ### `goBench.tableTests.testingApi.enabled`
 
@@ -238,8 +238,8 @@ Test Explorer 树模式。
 
 可选值：
 
-- `goBench`：默认值。显示 Go Bench 增强树，包括可识别 table case。
-- `standardGo`：显示更接近官方 Go 插件的函数级树，不展开 table case。
+- `goBench`：默认值。显示 `Go Bench` 增强树，包括可识别 table case，并隐藏官方 `Go` 树。
+- `standardGo`：显示官方 Go 扩展的 `Go` 树，并隐藏 `Go Bench` 树。
 
 示例：
 
