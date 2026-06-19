@@ -214,6 +214,15 @@ Go Bench
 - `args`：运行参数。
 - `env`：可选环境变量。
 - `createdAt` / `updatedAt`：用于后续排序和维护。
+- `packageName`：Go package 名称，用于在列表中显示目标所属 package。
+- `groupId`：可选分组 ID，用于把运行目标归档到用户创建的组中。
+
+运行与调试视图必须以树形结构展示：
+
+- 根层级展示用户创建的 group 和未分组 runnable。
+- group 节点展开后展示组内 runnable。
+- runnable 节点必须显示目标 package，例如 `package main`。
+- 既有未分组项目必须保持可见，不能因为引入 group 而丢失。
 
 第一阶段推荐优先支持：
 
@@ -234,6 +243,14 @@ Go Bench
 - 从文件选择器添加。
 - 从目录选择器添加 package 入口。
 - 从文件视图右键菜单添加。
+- 从 Run and Debug 视图标题区点击 scan 图标，扫描 workspace 中所有可执行 Go 文件。
+
+扫描添加行为：
+
+- scan 只识别静态 `package main` 且声明 `func main(...)` 的非 `_test.go` Go 文件。
+- 扫描完成后通过多选列表让用户选择要加入 Run and Debug 的文件。
+- 列表项应显示文件名、相对路径和 package 名称。
+- 已存在的扫描结果应默认不重复添加；用户重新选择时更新已有项。
 
 添加时行为：
 
@@ -251,6 +268,16 @@ Go Bench
 - 删除前提示确认。
 - 删除只影响 Go Bench 管理的列表，不删除真实文件。
 
+#### 8.3.3.1 分组管理
+
+必须支持：
+
+- 创建 runnable group。
+- 将单个 runnable 归档到已有 group。
+- 将单个 runnable 从 group 移回根层级。
+- 删除 group 时只删除分组，不删除真实文件，也不删除组内 runnable；组内 runnable 回到根层级。
+- group 节点提供批量运行入口，点击后依次运行组内所有 runnable。
+
 #### 8.3.4 编辑列表项
 
 必须支持：
@@ -265,6 +292,8 @@ Go Bench
 #### 8.3.5 运行列表项
 
 每个列表项必须提供 run 按钮。
+
+每个 group 必须提供 run 按钮，用于批量运行组内所有 runnable。
 
 Go 文件运行行为：
 
@@ -326,11 +355,16 @@ go run .
   "goBench.runnables.addCurrentFile": "Go Bench: Add Current File to Run and Debug",
   "goBench.runnables.addFile": "Go Bench: Add File to Run and Debug",
   "goBench.runnables.addPackage": "Go Bench: Add Package to Run and Debug",
+  "goBench.runnables.scanFiles": "Go Bench: Scan Executable Go Files",
+  "goBench.runnables.createGroup": "Go Bench: Create Runnable Group",
+  "goBench.runnables.moveToGroup": "Go Bench: Archive Runnable to Group",
+  "goBench.runnables.runGroup": "Go Bench: Run Runnable Group",
+  "goBench.runnables.removeGroup": "Go Bench: Remove Runnable Group",
   "goBench.runnables.remove": "Go Bench: Remove Runnable",
   "goBench.runnables.edit": "Go Bench: Edit Runnable",
   "goBench.runnables.run": "Go Bench: Run Runnable",
   "goBench.runnables.debug": "Go Bench: Debug Runnable",
-  "goBench.runnables.reveal": "Go Bench: Reveal Runnable"
+  "goBench.runnables.reveal": "Go Bench: Open Runnable File"
 }
 ```
 
@@ -353,6 +387,7 @@ go run .
   "goBench.sidebar.tests.enabled": true,
   "goBench.sidebar.runnables.enabled": true,
   "goBench.runnables.items": [],
+  "goBench.runnables.groups": [],
   "goBench.runnables.defaultRunInTerminal": true
 }
 ```
@@ -402,12 +437,19 @@ go run .
 
 运行与调试节点：
 
-- 打开目标。
+- 打开文件。
 - 运行。
 - 调试。
 - 编辑。
+- 归档到 group。
 - 删除。
 - 复制路径。
+
+运行与调试 group 节点：
+
+- 展开/折叠。
+- 批量运行组内所有项目。
+- 删除 group，并保留组内项目。
 
 ### 10.3 图标和按钮
 
@@ -415,6 +457,7 @@ go run .
 - debug 使用 `debug-alt` 或 VSCode 推荐 debug codicon。
 - refresh 使用 `refresh`。
 - add 使用 `add`。
+- scan 使用 `search`。
 - remove 使用 `trash`。
 - edit 使用 `edit`。
 - reveal 使用 `go-to-file` 或 `folder-opened`。

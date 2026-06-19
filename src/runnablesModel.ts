@@ -22,6 +22,10 @@ export type GoBenchRunnableItem = {
   workspaceFolder: string;
   /** 运行目标类型。 */
   kind: GoBenchRunnableKind;
+  /** Go package 名称，用于在 Run and Debug 树中让用户确认目标归属。 */
+  packageName?: string;
+  /** 用户归档分组 ID；未设置时显示在 Run and Debug 根层级。 */
+  groupId?: string;
   /** 运行工作目录；workspace 内使用相对路径，避免把本机绝对路径写入共享设置。 */
   cwd: string;
   /** 传给 `go run` 或 debug adapter 的参数。 */
@@ -33,6 +37,30 @@ export type GoBenchRunnableItem = {
   /** ISO 时间戳，编辑或重复添加更新已有项时刷新。 */
   updatedAt: string;
 };
+
+/** Run and Debug 树中的用户分组。 */
+export type GoBenchRunnableGroup = {
+  /** 稳定分组 ID。 */
+  id: string;
+  /** 侧边栏展示名称。 */
+  label: string;
+  /** ISO 时间戳，用于后续排序或同步。 */
+  createdAt: string;
+  /** ISO 时间戳，重命名或修改分组时刷新。 */
+  updatedAt: string;
+};
+
+/** Run and Debug 根层级展示节点。 */
+export type GoBenchRunnableTreeRoot =
+  | {
+      kind: 'group';
+      group: GoBenchRunnableGroup;
+      items: GoBenchRunnableItem[];
+    }
+  | {
+      kind: 'item';
+      item: GoBenchRunnableItem;
+    };
 
 /** VSCode workspace folder 的最小可测试投影。 */
 export type RunnableWorkspaceFolder = {
@@ -46,6 +74,8 @@ export type RunnableTargetInput = {
   path: string;
   workspaceFolder: RunnableWorkspaceFolder;
   label?: string;
+  packageName?: string;
+  groupId?: string;
   args?: string[];
   env?: Record<string, string>;
   now?: string;
@@ -56,6 +86,12 @@ export type AddRunnableResult = {
   items: GoBenchRunnableItem[];
   item: GoBenchRunnableItem;
   action: 'added' | 'updated';
+};
+
+/** 创建分组的输入。 */
+export type RunnableGroupInput = {
+  label: string;
+  now?: string;
 };
 
 /** 可直接交给官方 Go 扩展 debug adapter 的 launch configuration。 */
@@ -114,6 +150,8 @@ export function createRunnableItem(input: RunnableTargetInput): GoBenchRunnableI
     uri: persistedUri,
     workspaceFolder: input.workspaceFolder.name,
     kind: input.kind,
+    packageName: input.packageName,
+    groupId: input.groupId,
     cwd: persistedCwd,
     args: input.args ?? [],
     env: input.env,
@@ -141,6 +179,7 @@ export function addOrUpdateRunnable(
   const existing = items[existingIndex];
   const updated = {
     ...candidate,
+    groupId: existing.groupId ?? candidate.groupId,
     createdAt: existing.createdAt,
     updatedAt: candidate.updatedAt
   };
@@ -159,7 +198,7 @@ export function removeRunnable(items: readonly GoBenchRunnableItem[], id: string
 /** 更新用户可编辑字段，保持 ID 和目标路径稳定。 */
 export function editRunnableItem(
   item: GoBenchRunnableItem,
-  patch: Partial<Pick<GoBenchRunnableItem, 'label' | 'args' | 'cwd' | 'env'>>,
+  patch: Partial<Pick<GoBenchRunnableItem, 'label' | 'args' | 'cwd' | 'env' | 'groupId' | 'packageName'>>,
   now = new Date().toISOString()
 ): GoBenchRunnableItem {
   return {
@@ -167,6 +206,79 @@ export function editRunnableItem(
     ...patch,
     updatedAt: now
   };
+}
+
+/** 新建 runnable 分组，ID 从名称和时间戳派生，保证 workspace settings 中稳定可读。 */
+export function createRunnableGroup(input: RunnableGroupInput): GoBenchRunnableGroup {
+  const now = input.now ?? new Date().toISOString();
+  const normalizedLabel = input.label.trim();
+  return {
+    id: `group:${slugify(normalizedLabel)}:${now}`,
+    label: normalizedLabel,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+/** 将 runnable 归档到指定分组；groupId 为 undefined 时表示移回根层级。 */
+export function assignRunnableGroup(
+  items: readonly GoBenchRunnableItem[],
+  id: string,
+  groupId: string | undefined,
+  now = new Date().toISOString()
+): GoBenchRunnableItem[] {
+  return items.map(item => item.id === id ? editRunnableItem(item, { groupId }, now) : item);
+}
+
+/** 删除分组时保留项目，只把其中项目移回根层级。 */
+export function removeRunnableGroup(
+  groups: readonly GoBenchRunnableGroup[],
+  items: readonly GoBenchRunnableItem[],
+  groupId: string,
+  now = new Date().toISOString()
+): { groups: GoBenchRunnableGroup[]; items: GoBenchRunnableItem[] } {
+  return {
+    groups: groups.filter(group => group.id !== groupId),
+    items: items.map(item => item.groupId === groupId ? editRunnableItem(item, { groupId: undefined }, now) : item)
+  };
+}
+
+/** 将扁平持久化数据投影为 Run and Debug 根层级树：分组在前，未分组项目在后。 */
+export function buildRunnableTreeRoots(
+  items: readonly GoBenchRunnableItem[],
+  groups: readonly GoBenchRunnableGroup[]
+): GoBenchRunnableTreeRoot[] {
+  const groupedItems = new Map<string, GoBenchRunnableItem[]>();
+  for (const item of items) {
+    if (!item.groupId) {
+      continue;
+    }
+    const children = groupedItems.get(item.groupId) ?? [];
+    children.push(item);
+    groupedItems.set(item.groupId, children);
+  }
+
+  return [
+    ...groups.map(group => ({
+      kind: 'group' as const,
+      group,
+      items: sortRunnableItems(groupedItems.get(group.id) ?? [])
+    })),
+    ...sortRunnableItems(items.filter(item => !item.groupId || !groups.some(group => group.id === item.groupId))).map(item => ({
+      kind: 'item' as const,
+      item
+    }))
+  ];
+}
+
+/** 从 Go 源码中提取 package 名称；扫描和展示都走同一条逻辑，避免 UI 和模型判断分叉。 */
+export function parseGoPackageName(source: string): string | undefined {
+  return source.match(/^\s*package\s+([A-Za-z_][A-Za-z0-9_]*)\b/m)?.[1];
+}
+
+/** 判断 Go 文件是否是可执行入口；扫描只收录 `package main` 且声明 `func main(...)` 的文件。 */
+export function isExecutableGoFileContent(source: string): boolean {
+  return parseGoPackageName(source) === 'main' && /^\s*func\s+main\s*\(/m.test(source);
 }
 
 /** 为 terminal 展示和执行构造 `go run` 命令文本。 */
@@ -238,4 +350,22 @@ export function shellQuote(value: string): string {
     return value;
   }
   return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+function sortRunnableItems(items: readonly GoBenchRunnableItem[]): GoBenchRunnableItem[] {
+  return [...items].sort((left, right) => {
+    const labelComparison = left.label.localeCompare(right.label, undefined, { sensitivity: 'base', numeric: true });
+    if (labelComparison !== 0) {
+      return labelComparison;
+    }
+    return left.uri.localeCompare(right.uri, undefined, { sensitivity: 'base', numeric: true });
+  });
+}
+
+function slugify(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'group';
 }

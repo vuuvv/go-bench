@@ -65,6 +65,16 @@ export const commands = {
   addRunnableFile: 'goBench.runnables.addFile',
   /** 通过目录选择器添加 Go package 运行目标。 */
   addRunnablePackage: 'goBench.runnables.addPackage',
+  /** 扫描 workspace 中所有可执行 Go 文件并批量加入 Run and Debug。 */
+  scanRunnableFiles: 'goBench.runnables.scanFiles',
+  /** 创建 Run and Debug runnable 分组。 */
+  createRunnableGroup: 'goBench.runnables.createGroup',
+  /** 将 Run and Debug runnable 归档到分组或移回根层级。 */
+  moveRunnableToGroup: 'goBench.runnables.moveToGroup',
+  /** 批量运行 Run and Debug 分组中的所有 runnable。 */
+  runRunnableGroup: 'goBench.runnables.runGroup',
+  /** 删除 Run and Debug runnable 分组但保留其中项目。 */
+  removeRunnableGroup: 'goBench.runnables.removeGroup',
   /** 从 Go Bench Run and Debug 列表移除运行目标。 */
   removeRunnable: 'goBench.runnables.remove',
   /** 编辑 Go Bench Run and Debug 列表中的运行目标。 */
@@ -126,6 +136,8 @@ export const configurationKeys = {
   sidebarRunnablesEnabled: 'goBench.sidebar.runnables.enabled',
   /** workspace 级持久化的 Run and Debug runnable 列表。 */
   runnableItems: 'goBench.runnables.items',
+  /** workspace 级持久化的 Run and Debug runnable 分组。 */
+  runnableGroups: 'goBench.runnables.groups',
   /** runnable 是否默认在 VSCode terminal 中执行。 */
   runnablesDefaultRunInTerminal: 'goBench.runnables.defaultRunInTerminal'
 } as const;
@@ -150,5 +162,6 @@ export const defaultSidebarConfig = {
   testsEnabled: true,
   runnablesEnabled: true,
   runnableItems: [],
+  runnableGroups: [],
   runnablesDefaultRunInTerminal: true
 } as const;

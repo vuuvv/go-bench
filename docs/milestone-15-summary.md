@@ -8,6 +8,11 @@
 - 支持从当前编辑器文件、文件选择器、目录选择器、Go Bench Files 右键菜单添加 runnable。
 - 支持重复添加提示更新已有目标，避免列表中出现同一文件或 package 的重复项。
 - 支持 runnable 右键或 inline action 运行、调试、编辑、删除、打开目标和复制路径。
+- Run and Debug 列表升级为树形结构，支持用户创建 group，并把 runnable 归档到 group 中。
+- group 节点支持批量运行组内所有 runnable；删除 group 只移除分组，组内项目会回到根层级。
+- 新增扫描按钮，可扫描 workspace 中所有静态 `package main` 且声明 `func main(...)` 的非测试 Go 文件，并通过多选列表批量加入。
+- runnable 节点显示 package 名称，便于用户区分同名 `main.go`。
+- runnable 节点的打开动作统一命名为 Open File，并作为每个项目的 inline action 展示。
 - 运行使用 VSCode terminal，并写出 `go run` 命令；Go 文件执行 `go run <file>`，Go package 执行 `go run .`。
 - 调试使用官方 Go debug adapter 兼容配置：`type: "go"`、`request: "launch"`、`mode: "debug"`。
 - Go 文件添加时会检查 `package main`；非 `package main` 允许用户确认后继续添加。
@@ -16,7 +21,8 @@
 ## 关键文件
 
 - `src/runnablesModel.ts`：runnable 纯数据模型、持久化路径转换、去重、编辑、`go run` 命令和 debug 配置构造。
-- `src/runnables.ts`：Run and Debug tree provider、workspace settings 读写、命令注册、terminal/debug 启动。
+- `src/runnablesModel.ts`：补充分组、树形投影、package 解析和可执行 Go 文件识别。
+- `src/runnables.ts`：Run and Debug tree provider、workspace settings 读写、扫描、分组、命令注册、terminal/debug 启动。
 - `src/sidebar.ts`：将 Run and Debug 视图接入 `GoBenchRunnablesProvider`。
 - `src/constants.ts`：新增 runnable 命令和配置键。
 - `package.json`：贡献 Run and Debug 标题区操作、runnable 节点菜单、Files 视图添加入口和配置项。
@@ -32,6 +38,10 @@
 - 在 Go Bench `Files` 视图中右键 Go 文件，选择添加到 Run and Debug。
 - 在 Go Bench `Files` 视图中右键目录或 workspace 根，选择添加为 Go package 运行目标。
 - 在 Run and Debug runnable 节点上点击 inline run/debug 图标。
+- 在 Run and Debug 标题区点击 scan 图标，选择要加入的可执行 Go 文件。
+- 在 Run and Debug 标题区创建 group。
+- 在 Run and Debug runnable 节点右键选择归档到 group 或移回根层级。
+- 在 Run and Debug group 节点上点击 run 图标，批量运行组内所有 runnable。
 - 在 Run and Debug runnable 节点右键执行编辑、删除、打开目标和复制路径。
 - 运行目标会保存到 workspace settings，重启插件后仍可恢复。
 
@@ -44,7 +54,7 @@ npm run lint
 
 本次验证结果：
 
-- `npm test`：通过，68 个测试全部成功。
+- `npm test`：通过，72 个测试全部成功。
 - `npm run lint`：通过。
 
 ## 手动验证建议
@@ -56,6 +66,8 @@ npm run lint
 - 点击 runnable 的 debug 图标，确认启动 Go debug session。
 - 删除 runnable，确认列表项移除且真实文件仍保留。
 - 重载 Extension Development Host，确认 runnable 列表仍存在。
+- 创建 group，将一个 runnable 归档进去，确认树形结构可展开且 group run 会依次启动组内项目。
+- 点击 scan 按钮，确认只出现 `package main` 且声明 `func main(...)` 的非 `_test.go` Go 文件，并能批量加入列表。
 
 ## 已知边界
 
@@ -64,3 +76,4 @@ npm run lint
 - `env` 通过 quick input 输入 `KEY=value` 文本；复杂配置可直接编辑 workspace settings。
 - package 目录添加不自动扫描是否包含 `package main`，运行失败时保留 terminal 输出。
 - workspace folder 通过名称恢复；如果 multi-root workspace 中存在同名根目录，后续需要扩展为更强的 workspace 标识。
+- 扫描只做静态 package 声明识别，不解析 build tags、`go:generate` 或间接入口。

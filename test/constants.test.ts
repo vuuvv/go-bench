@@ -48,6 +48,11 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.addCurrentRunnableFile, 'goBench.runnables.addCurrentFile');
     assert.equal(commands.addRunnableFile, 'goBench.runnables.addFile');
     assert.equal(commands.addRunnablePackage, 'goBench.runnables.addPackage');
+    assert.equal(commands.scanRunnableFiles, 'goBench.runnables.scanFiles');
+    assert.equal(commands.createRunnableGroup, 'goBench.runnables.createGroup');
+    assert.equal(commands.moveRunnableToGroup, 'goBench.runnables.moveToGroup');
+    assert.equal(commands.runRunnableGroup, 'goBench.runnables.runGroup');
+    assert.equal(commands.removeRunnableGroup, 'goBench.runnables.removeGroup');
     assert.equal(commands.removeRunnable, 'goBench.runnables.remove');
     assert.equal(commands.editRunnable, 'goBench.runnables.edit');
     assert.equal(commands.runRunnable, 'goBench.runnables.run');
@@ -98,6 +103,7 @@ describe('extension skeleton constants', () => {
       testsEnabled: true,
       runnablesEnabled: true,
       runnableItems: [],
+      runnableGroups: [],
       runnablesDefaultRunInTerminal: true
     });
   });
@@ -115,6 +121,7 @@ describe('extension skeleton constants', () => {
       'goBench.sidebar.tests.enabled',
       'goBench.sidebar.runnables.enabled',
       'goBench.runnables.items',
+      'goBench.runnables.groups',
       'goBench.runnables.defaultRunInTerminal'
     ]);
   });

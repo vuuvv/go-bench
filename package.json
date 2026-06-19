@@ -177,6 +177,31 @@
         "icon": "$(package)"
       },
       {
+        "command": "goBench.runnables.scanFiles",
+        "title": "Go Bench: Scan Executable Go Files",
+        "icon": "$(search)"
+      },
+      {
+        "command": "goBench.runnables.createGroup",
+        "title": "Go Bench: Create Runnable Group",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "goBench.runnables.moveToGroup",
+        "title": "Archive to Group",
+        "icon": "$(folder-active)"
+      },
+      {
+        "command": "goBench.runnables.runGroup",
+        "title": "Run Group",
+        "icon": "$(play)"
+      },
+      {
+        "command": "goBench.runnables.removeGroup",
+        "title": "Remove Group",
+        "icon": "$(trash)"
+      },
+      {
         "command": "goBench.runnables.remove",
         "title": "Remove",
         "icon": "$(trash)"
@@ -198,7 +223,7 @@
       },
       {
         "command": "goBench.runnables.reveal",
-        "title": "Open Target",
+        "title": "Open File",
         "icon": "$(go-to-file)"
       },
       {
@@ -265,19 +290,29 @@
           "group": "navigation@1"
         },
         {
-          "command": "goBench.runnables.addCurrentFile",
+          "command": "goBench.runnables.scanFiles",
           "when": "view == goBench.sidebar.runAndDebug",
           "group": "navigation@0"
         },
         {
-          "command": "goBench.runnables.addFile",
+          "command": "goBench.runnables.addCurrentFile",
           "when": "view == goBench.sidebar.runAndDebug",
           "group": "navigation@1"
         },
         {
-          "command": "goBench.runnables.addPackage",
+          "command": "goBench.runnables.addFile",
           "when": "view == goBench.sidebar.runAndDebug",
           "group": "navigation@2"
+        },
+        {
+          "command": "goBench.runnables.addPackage",
+          "when": "view == goBench.sidebar.runAndDebug",
+          "group": "navigation@3"
+        },
+        {
+          "command": "goBench.runnables.createGroup",
+          "when": "view == goBench.sidebar.runAndDebug",
+          "group": "navigation@4"
         },
         {
           "command": "goBench.toggleTestTreeModeFromGoBench",
@@ -384,10 +419,20 @@
         {
           "command": "goBench.runnables.reveal",
           "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
-          "group": "navigation@0"
+          "group": "inline@2"
+        },
+        {
+          "command": "goBench.runnables.runGroup",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroup",
+          "group": "inline@0"
         },
         {
           "command": "goBench.runnables.edit",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
+          "group": "navigation@0"
+        },
+        {
+          "command": "goBench.runnables.moveToGroup",
           "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
           "group": "navigation@1"
         },
@@ -400,6 +445,11 @@
           "command": "goBench.runnables.copyPath",
           "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnable",
           "group": "navigation@3"
+        },
+        {
+          "command": "goBench.runnables.removeGroup",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableGroup",
+          "group": "navigation@0"
         },
         {
           "command": "goBench.runnables.addFile",
@@ -482,6 +532,11 @@
           "type": "array",
           "default": [],
           "description": "Workspace-scoped Go Bench runnable targets shown in the Run and Debug sidebar view."
+        },
+        "goBench.runnables.groups": {
+          "type": "array",
+          "default": [],
+          "description": "Workspace-scoped Go Bench runnable groups shown in the Run and Debug sidebar view."
         },
         "goBench.runnables.defaultRunInTerminal": {
           "type": "boolean",

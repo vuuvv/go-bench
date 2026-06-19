@@ -200,6 +200,31 @@ describe('VSCode extension manifest', () => {
         icon: '$(package)'
       },
       {
+        command: commands.scanRunnableFiles,
+        title: 'Go Bench: Scan Executable Go Files',
+        icon: '$(search)'
+      },
+      {
+        command: commands.createRunnableGroup,
+        title: 'Go Bench: Create Runnable Group',
+        icon: '$(folder)'
+      },
+      {
+        command: commands.moveRunnableToGroup,
+        title: 'Archive to Group',
+        icon: '$(folder-active)'
+      },
+      {
+        command: commands.runRunnableGroup,
+        title: 'Run Group',
+        icon: '$(play)'
+      },
+      {
+        command: commands.removeRunnableGroup,
+        title: 'Remove Group',
+        icon: '$(trash)'
+      },
+      {
         command: commands.removeRunnable,
         title: 'Remove',
         icon: '$(trash)'
@@ -221,7 +246,7 @@ describe('VSCode extension manifest', () => {
       },
       {
         command: commands.revealRunnable,
-        title: 'Open Target',
+        title: 'Open File',
         icon: '$(go-to-file)'
       },
       {
@@ -330,19 +355,29 @@ describe('VSCode extension manifest', () => {
         group: 'navigation@1'
       },
       {
-        command: commands.addCurrentRunnableFile,
+        command: commands.scanRunnableFiles,
         when: `view == ${sidebarViewIds.runAndDebug}`,
         group: 'navigation@0'
       },
       {
-        command: commands.addRunnableFile,
+        command: commands.addCurrentRunnableFile,
         when: `view == ${sidebarViewIds.runAndDebug}`,
         group: 'navigation@1'
       },
       {
-        command: commands.addRunnablePackage,
+        command: commands.addRunnableFile,
         when: `view == ${sidebarViewIds.runAndDebug}`,
         group: 'navigation@2'
+      },
+      {
+        command: commands.addRunnablePackage,
+        when: `view == ${sidebarViewIds.runAndDebug}`,
+        group: 'navigation@3'
+      },
+      {
+        command: commands.createRunnableGroup,
+        when: `view == ${sidebarViewIds.runAndDebug}`,
+        group: 'navigation@4'
       },
       {
         command: commands.toggleTestTreeModeFromGoBench,
@@ -452,10 +487,20 @@ describe('VSCode extension manifest', () => {
       {
         command: commands.revealRunnable,
         when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
-        group: 'navigation@0'
+        group: 'inline@2'
+      },
+      {
+        command: commands.runRunnableGroup,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroup`,
+        group: 'inline@0'
       },
       {
         command: commands.editRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
+        group: 'navigation@0'
+      },
+      {
+        command: commands.moveRunnableToGroup,
         when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
         group: 'navigation@1'
       },
@@ -468,6 +513,11 @@ describe('VSCode extension manifest', () => {
         command: commands.copyRunnablePath,
         when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnable`,
         group: 'navigation@3'
+      },
+      {
+        command: commands.removeRunnableGroup,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroup`,
+        group: 'navigation@0'
       },
       {
         command: commands.addRunnableFile,
@@ -502,6 +552,7 @@ describe('VSCode extension manifest', () => {
     assert.equal(properties[configurationKeys.sidebarTestsEnabled].default, defaultSidebarConfig.testsEnabled);
     assert.equal(properties[configurationKeys.sidebarRunnablesEnabled].default, defaultSidebarConfig.runnablesEnabled);
     assert.deepEqual(properties[configurationKeys.runnableItems].default, defaultSidebarConfig.runnableItems);
+    assert.deepEqual(properties[configurationKeys.runnableGroups].default, defaultSidebarConfig.runnableGroups);
     assert.equal(
       properties[configurationKeys.runnablesDefaultRunInTerminal].default,
       defaultSidebarConfig.runnablesDefaultRunInTerminal

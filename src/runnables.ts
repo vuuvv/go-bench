@@ -11,16 +11,24 @@ import { commands, configurationKeys } from './constants';
 import type { FileExplorerNode } from './fileExplorer';
 import {
   addOrUpdateRunnable,
+  assignRunnableGroup,
+  buildRunnableTreeRoots,
   buildGoRunCommand,
   buildRunnableDebugConfiguration,
+  createRunnableGroup,
   createRunnableItem,
   editRunnableItem,
+  isExecutableGoFileContent,
+  parseGoPackageName,
   parseRunnableArgs,
   parseRunnableEnv,
+  removeRunnableGroup,
   removeRunnable,
   resolvePersistedPath,
+  type GoBenchRunnableGroup,
   type GoBenchRunnableItem,
   type GoBenchRunnableKind,
+  type GoBenchRunnableTreeRoot,
   type RunnableWorkspaceFolder
 } from './runnablesModel';
 
@@ -28,6 +36,11 @@ type RunnableTreeNode =
   | {
       kind: 'empty';
       label: string;
+    }
+  | {
+      kind: 'group';
+      group: GoBenchRunnableGroup;
+      items: GoBenchRunnableItem[];
     }
   | {
       kind: 'runnable';
@@ -58,25 +71,42 @@ export class GoBenchRunnablesProvider
       return item;
     }
 
+    if (node.kind === 'group') {
+      const item = new vscode.TreeItem(node.group.label, vscode.TreeItemCollapsibleState.Expanded);
+      item.description = `${node.items.length} item${node.items.length === 1 ? '' : 's'}`;
+      item.tooltip = `${node.group.label}\n${node.items.length} runnable target${node.items.length === 1 ? '' : 's'}`;
+      item.contextValue = 'goBenchRunnableGroup';
+      item.iconPath = new vscode.ThemeIcon('folder');
+      return item;
+    }
+
     const treeItem = new vscode.TreeItem(node.item.label, vscode.TreeItemCollapsibleState.None);
-    treeItem.description = node.item.kind === 'goFile' ? 'Go file' : 'Go package';
-    treeItem.tooltip = `${node.item.label}\n${node.item.uri}\nworkspace: ${node.item.workspaceFolder}`;
+    treeItem.description = formatRunnableDescription(node.item);
+    treeItem.tooltip = `${node.item.label}\n${node.item.uri}\npackage: ${node.item.packageName ?? 'unknown'}\nworkspace: ${node.item.workspaceFolder}`;
     treeItem.contextValue = 'goBenchRunnable';
     treeItem.iconPath = new vscode.ThemeIcon(node.item.kind === 'goFile' ? 'go-to-file' : 'package');
     treeItem.command = {
       command: commands.revealRunnable,
-      title: 'Open Runnable Target',
+      title: 'Open File',
       arguments: [node.item]
     };
     return treeItem;
   }
 
-  public getChildren(): vscode.ProviderResult<RunnableTreeNode[]> {
+  public getChildren(node?: RunnableTreeNode): vscode.ProviderResult<RunnableTreeNode[]> {
+    if (node?.kind === 'group') {
+      return node.items.map(item => ({ kind: 'runnable', item }));
+    }
+    if (node) {
+      return [];
+    }
+
     const items = readRunnableItems();
-    if (items.length === 0) {
+    const groups = readRunnableGroups();
+    if (items.length === 0 && groups.length === 0) {
       return [{ kind: 'empty', label: 'Add current file' }];
     }
-    return items.map(item => ({ kind: 'runnable', item }));
+    return buildRunnableTreeRoots(items, groups).map(rootToTreeNode);
   }
 
   public dispose(): void {
@@ -90,7 +120,7 @@ export function registerGoBenchRunnables(options: {
   output: vscode.OutputChannel;
 }): vscode.Disposable {
   const configurationSubscription = vscode.workspace.onDidChangeConfiguration(event => {
-    if (event.affectsConfiguration(configurationKeys.runnableItems)) {
+    if (event.affectsConfiguration(configurationKeys.runnableItems) || event.affectsConfiguration(configurationKeys.runnableGroups)) {
       options.provider.refresh();
     }
   });
@@ -137,6 +167,33 @@ export function registerGoBenchRunnables(options: {
       return;
     }
     await addRunnableFromUri(uris[0], 'goPackage', options);
+  });
+  const scanCommand = vscode.commands.registerCommand(commands.scanRunnableFiles, async () => {
+    await scanRunnableFiles(options);
+  });
+  const createGroupCommand = vscode.commands.registerCommand(commands.createRunnableGroup, async () => {
+    await createGroup(options);
+  });
+  const moveToGroupCommand = vscode.commands.registerCommand(commands.moveRunnableToGroup, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
+    const item = normalizeRunnableCommandArgument(itemOrNode);
+    if (!item) {
+      return;
+    }
+    await moveRunnableToGroup(item, options);
+  });
+  const runGroupCommand = vscode.commands.registerCommand(commands.runRunnableGroup, async (node?: RunnableTreeNode) => {
+    const group = normalizeRunnableGroupCommandArgument(node);
+    if (!group) {
+      return;
+    }
+    await runRunnableGroup(group, options);
+  });
+  const removeGroupCommand = vscode.commands.registerCommand(commands.removeRunnableGroup, async (node?: RunnableTreeNode) => {
+    const group = normalizeRunnableGroupCommandArgument(node);
+    if (!group) {
+      return;
+    }
+    await removeGroup(group, options);
   });
   const removeCommand = vscode.commands.registerCommand(commands.removeRunnable, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
     const item = normalizeRunnableCommandArgument(itemOrNode);
@@ -198,6 +255,11 @@ export function registerGoBenchRunnables(options: {
     addCurrentFileCommand,
     addFileCommand,
     addPackageCommand,
+    scanCommand,
+    createGroupCommand,
+    moveToGroupCommand,
+    runGroupCommand,
+    removeGroupCommand,
     removeCommand,
     editCommand,
     runCommand,
@@ -226,7 +288,8 @@ async function addRunnableFromUri(
   }
 
   const workspace = toRunnableWorkspaceFolder(workspaceFolder);
-  const input = { kind, path: uri.fsPath, workspaceFolder: workspace };
+  const packageName = await readGoPackageName(uri, kind);
+  const input = { kind, path: uri.fsPath, workspaceFolder: workspace, packageName };
   const candidate = createRunnableItem(input);
   const currentItems = readRunnableItems();
   if (currentItems.some(item => item.id === candidate.id)) {
@@ -260,6 +323,151 @@ async function addRunnableFromUri(
       ? `Go Bench: added "${result.item.label}" to Run and Debug.`
       : `Go Bench: updated "${result.item.label}" in Run and Debug.`
   );
+}
+
+async function scanRunnableFiles(options: {
+  provider: GoBenchRunnablesProvider;
+  output: vscode.OutputChannel;
+}): Promise<void> {
+  const files = await vscode.workspace.findFiles('**/*.go', '**/{vendor,.git,node_modules}/**');
+  const candidates = await Promise.all(files.filter(uri => !uri.fsPath.endsWith('_test.go')).map(readExecutableGoFileCandidate));
+  const executableFiles = candidates.filter((candidate): candidate is ScanRunnableCandidate => candidate !== undefined);
+  if (executableFiles.length === 0) {
+    void vscode.window.showInformationMessage('Go Bench: no executable Go files found.');
+    return;
+  }
+
+  const selected = await vscode.window.showQuickPick(
+    executableFiles.map(candidate => ({
+      label: basename(candidate.uri.fsPath),
+      description: `package ${candidate.packageName}`,
+      detail: vscode.workspace.asRelativePath(candidate.uri, false),
+      candidate,
+      picked: !readRunnableItems().some(item => item.id === createRunnableItem({
+        kind: 'goFile',
+        path: candidate.uri.fsPath,
+        workspaceFolder: candidate.workspaceFolder,
+        packageName: candidate.packageName
+      }).id)
+    })),
+    {
+      canPickMany: true,
+      title: 'Add executable Go files to Go Bench Run and Debug',
+      placeHolder: 'Select package main files to add'
+    }
+  );
+  if (!selected || selected.length === 0) {
+    return;
+  }
+
+  const currentItems = readRunnableItems();
+  let nextItems = currentItems;
+  let added = 0;
+  let updated = 0;
+  for (const selection of selected) {
+    const result = addOrUpdateRunnable(nextItems, {
+      kind: 'goFile',
+      path: selection.candidate.uri.fsPath,
+      workspaceFolder: selection.candidate.workspaceFolder,
+      packageName: selection.candidate.packageName
+    });
+    nextItems = result.items;
+    if (result.action === 'added') {
+      added += 1;
+    } else {
+      updated += 1;
+    }
+  }
+
+  await writeRunnableItems(nextItems);
+  options.provider.refresh();
+  void vscode.window.showInformationMessage(`Go Bench: added ${added} and updated ${updated} runnable file(s).`);
+}
+
+async function createGroup(options: { provider: GoBenchRunnablesProvider; output: vscode.OutputChannel }): Promise<GoBenchRunnableGroup | undefined> {
+  const label = await vscode.window.showInputBox({
+    prompt: 'Runnable group name',
+    validateInput: value => value.trim() === '' ? 'Enter a group name.' : undefined
+  });
+  if (label === undefined) {
+    return undefined;
+  }
+
+  const group = createRunnableGroup({ label });
+  await writeRunnableGroups([...readRunnableGroups(), group]);
+  options.provider.refresh();
+  return group;
+}
+
+async function moveRunnableToGroup(
+  item: GoBenchRunnableItem,
+  options: { provider: GoBenchRunnablesProvider; output: vscode.OutputChannel }
+): Promise<void> {
+  const groups = readRunnableGroups();
+  const picks = [
+    { label: 'Root level', description: 'Remove from group', groupId: undefined as string | undefined, create: false },
+    { label: 'New group...', description: 'Create a group and move this runnable into it', groupId: undefined, create: true },
+    ...groups.map(group => ({
+      label: group.label,
+      description: 'Move into this group',
+      groupId: group.id,
+      create: false
+    }))
+  ];
+  const selected = await vscode.window.showQuickPick(picks, {
+    title: `Archive "${item.label}" to a group`,
+    placeHolder: 'Choose a group'
+  });
+  if (!selected) {
+    return;
+  }
+
+  let groupId = selected.groupId;
+  if (selected.create) {
+    const group = await createGroup(options);
+    if (!group) {
+      return;
+    }
+    groupId = group.id;
+  }
+
+  await writeRunnableItems(assignRunnableGroup(readRunnableItems(), item.id, groupId));
+  options.provider.refresh();
+}
+
+async function runRunnableGroup(
+  groupNode: Extract<RunnableTreeNode, { kind: 'group' }>,
+  options: { provider: GoBenchRunnablesProvider; output: vscode.OutputChannel }
+): Promise<void> {
+  if (groupNode.items.length === 0) {
+    void vscode.window.showInformationMessage(`Go Bench: group "${groupNode.group.label}" has no runnable items.`);
+    return;
+  }
+
+  options.output.appendLine('');
+  options.output.appendLine(`Running runnable group ${groupNode.group.label}`);
+  for (const item of groupNode.items) {
+    await runRunnable(item, options);
+  }
+}
+
+async function removeGroup(
+  groupNode: Extract<RunnableTreeNode, { kind: 'group' }>,
+  options: { provider: GoBenchRunnablesProvider; output: vscode.OutputChannel }
+): Promise<void> {
+  const confirmed = await vscode.window.showWarningMessage(
+    `Remove group "${groupNode.group.label}"? Its runnable items will stay in Run and Debug.`,
+    { modal: true },
+    'Remove Group'
+  );
+  if (confirmed !== 'Remove Group') {
+    return;
+  }
+
+  const result = removeRunnableGroup(readRunnableGroups(), readRunnableItems(), groupNode.group.id);
+  await writeRunnableGroups(result.groups);
+  await writeRunnableItems(result.items);
+  options.provider.refresh();
 }
 
 async function confirmRunnableGoFile(uri: vscode.Uri): Promise<boolean> {
@@ -406,6 +614,82 @@ async function revealRunnable(item: GoBenchRunnableItem): Promise<void> {
   await vscode.commands.executeCommand('revealFileInOS', uri);
 }
 
+type ScanRunnableCandidate = {
+  uri: vscode.Uri;
+  workspaceFolder: RunnableWorkspaceFolder;
+  packageName: string;
+};
+
+async function readExecutableGoFileCandidate(uri: vscode.Uri): Promise<ScanRunnableCandidate | undefined> {
+  const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+  if (!workspaceFolder) {
+    return undefined;
+  }
+
+  try {
+    const bytes = await vscode.workspace.fs.readFile(uri);
+    const text = Buffer.from(bytes).toString('utf8');
+    if (!isExecutableGoFileContent(text)) {
+      return undefined;
+    }
+    return {
+      uri,
+      workspaceFolder: toRunnableWorkspaceFolder(workspaceFolder),
+      packageName: parseGoPackageName(text) ?? 'main'
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+async function readGoPackageName(uri: vscode.Uri, kind: GoBenchRunnableKind): Promise<string | undefined> {
+  if (kind === 'goFile') {
+    try {
+      const bytes = await vscode.workspace.fs.readFile(uri);
+      return parseGoPackageName(Buffer.from(bytes).toString('utf8'));
+    } catch {
+      return undefined;
+    }
+  }
+
+  try {
+    const entries = await vscode.workspace.fs.readDirectory(uri);
+    for (const [name, type] of entries) {
+      if (!name.endsWith('.go') || name.endsWith('_test.go') || (type & vscode.FileType.File) === 0) {
+        continue;
+      }
+      const bytes = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(uri, name));
+      const packageName = parseGoPackageName(Buffer.from(bytes).toString('utf8'));
+      if (packageName) {
+        return packageName;
+      }
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+function rootToTreeNode(root: GoBenchRunnableTreeRoot): RunnableTreeNode {
+  if (root.kind === 'group') {
+    return {
+      kind: 'group',
+      group: root.group,
+      items: root.items
+    };
+  }
+  return {
+    kind: 'runnable',
+    item: root.item
+  };
+}
+
+function formatRunnableDescription(item: GoBenchRunnableItem): string {
+  const packagePart = item.packageName ? `package ${item.packageName}` : 'package unknown';
+  return item.kind === 'goFile' ? packagePart : `${packagePart} directory`;
+}
+
 function normalizeRunnableCommandArgument(arg: GoBenchRunnableItem | RunnableTreeNode | undefined): GoBenchRunnableItem | undefined {
   if (!arg) {
     return undefined;
@@ -419,12 +703,27 @@ function normalizeRunnableCommandArgument(arg: GoBenchRunnableItem | RunnableTre
   return undefined;
 }
 
+function normalizeRunnableGroupCommandArgument(arg: RunnableTreeNode | undefined): Extract<RunnableTreeNode, { kind: 'group' }> | undefined {
+  if (arg?.kind === 'group') {
+    return arg;
+  }
+  return undefined;
+}
+
 function readRunnableItems(): GoBenchRunnableItem[] {
   return vscode.workspace.getConfiguration().get<GoBenchRunnableItem[]>(configurationKeys.runnableItems, []);
 }
 
 async function writeRunnableItems(items: GoBenchRunnableItem[]): Promise<void> {
   await vscode.workspace.getConfiguration().update(configurationKeys.runnableItems, items, vscode.ConfigurationTarget.Workspace);
+}
+
+function readRunnableGroups(): GoBenchRunnableGroup[] {
+  return vscode.workspace.getConfiguration().get<GoBenchRunnableGroup[]>(configurationKeys.runnableGroups, []);
+}
+
+async function writeRunnableGroups(groups: GoBenchRunnableGroup[]): Promise<void> {
+  await vscode.workspace.getConfiguration().update(configurationKeys.runnableGroups, groups, vscode.ConfigurationTarget.Workspace);
 }
 
 function findWorkspaceFolderByName(name: string): RunnableWorkspaceFolder | undefined {

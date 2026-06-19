@@ -10,12 +10,18 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 import {
   addOrUpdateRunnable,
+  assignRunnableGroup,
+  buildRunnableTreeRoots,
   buildGoRunCommand,
   buildRunnableDebugConfiguration,
+  createRunnableGroup,
   createRunnableItem,
   editRunnableItem,
+  isExecutableGoFileContent,
+  parseGoPackageName,
   parseRunnableArgs,
   parseRunnableEnv,
+  removeRunnableGroup,
   removeRunnable,
   resolvePersistedPath,
   toPersistedPath,
@@ -50,6 +56,8 @@ describe('Go Bench runnable model', () => {
       uri: 'cmd/api/main.go',
       workspaceFolder: 'repo',
       kind: 'goFile',
+      packageName: undefined,
+      groupId: undefined,
       cwd: 'cmd/api',
       args: [],
       env: undefined,
@@ -82,6 +90,26 @@ describe('Go Bench runnable model', () => {
     assert.deepEqual(second.item.args, ['--port', '8080']);
     assert.equal(second.item.createdAt, '2026-06-19T00:00:00.000Z');
     assert.equal(second.item.updatedAt, '2026-06-19T01:00:00.000Z');
+  });
+
+  it('keeps existing group assignment when rescanning the same target', () => {
+    const first = addOrUpdateRunnable([], {
+      kind: 'goFile',
+      path: join(workspace.path, 'cmd', 'api', 'main.go'),
+      workspaceFolder: workspace,
+      groupId: 'group:servers',
+      now: '2026-06-19T00:00:00.000Z'
+    });
+    const second = addOrUpdateRunnable(first.items, {
+      kind: 'goFile',
+      path: join(workspace.path, 'cmd', 'api', 'main.go'),
+      workspaceFolder: workspace,
+      packageName: 'main',
+      now: '2026-06-19T01:00:00.000Z'
+    });
+
+    assert.equal(second.item.groupId, 'group:servers');
+    assert.equal(second.item.packageName, 'main');
   });
 
   it('removes and edits runnable items without changing their target id', () => {
@@ -132,6 +160,8 @@ describe('Go Bench runnable model', () => {
       uri: 'cmd/worker',
       workspaceFolder: 'repo',
       kind: 'goPackage',
+      packageName: 'main',
+      groupId: undefined,
       cwd: 'cmd/worker',
       args: ['--once'],
       env: { GO_ENV: 'test' },
@@ -149,6 +179,52 @@ describe('Go Bench runnable model', () => {
       args: ['--once'],
       env: { GO_ENV: 'test' }
     });
+  });
+
+  it('creates groups and projects grouped runnable trees', () => {
+    const group = createRunnableGroup({ label: 'Servers', now: '2026-06-19T00:00:00.000Z' });
+    const api = createRunnableItem({
+      kind: 'goFile',
+      path: join(workspace.path, 'cmd', 'api', 'main.go'),
+      workspaceFolder: workspace,
+      label: 'api',
+      groupId: group.id
+    });
+    const cli = createRunnableItem({
+      kind: 'goFile',
+      path: join(workspace.path, 'cmd', 'cli', 'main.go'),
+      workspaceFolder: workspace,
+      label: 'cli'
+    });
+
+    assert.equal(group.id, 'group:servers:2026-06-19T00:00:00.000Z');
+    assert.deepEqual(buildRunnableTreeRoots([cli, api], [group]), [
+      { kind: 'group', group, items: [api] },
+      { kind: 'item', item: cli }
+    ]);
+  });
+
+  it('assigns and removes runnable groups without deleting runnable items', () => {
+    const group = createRunnableGroup({ label: 'Workers', now: '2026-06-19T00:00:00.000Z' });
+    const item = createRunnableItem({
+      kind: 'goFile',
+      path: join(workspace.path, 'cmd', 'worker', 'main.go'),
+      workspaceFolder: workspace
+    });
+    const groupedItems = assignRunnableGroup([item], item.id, group.id, '2026-06-19T01:00:00.000Z');
+    const removed = removeRunnableGroup([group], groupedItems, group.id, '2026-06-19T02:00:00.000Z');
+
+    assert.equal(groupedItems[0].groupId, group.id);
+    assert.deepEqual(removed.groups, []);
+    assert.equal(removed.items.length, 1);
+    assert.equal(removed.items[0].groupId, undefined);
+  });
+
+  it('detects executable Go file content by package name', () => {
+    assert.equal(parseGoPackageName('package main\nfunc main() {}'), 'main');
+    assert.equal(isExecutableGoFileContent('package main\nfunc main() {}'), true);
+    assert.equal(isExecutableGoFileContent('package main\nfunc helper() {}'), false);
+    assert.equal(isExecutableGoFileContent('package tools\nfunc main() {}'), false);
   });
 
   it('parses quick input args and env fields', () => {
