@@ -291,12 +291,13 @@ export class GoBenchRunnablesDragAndDropController implements vscode.TreeDragAnd
 
 /** 注册 Run and Debug 视图命令、配置监听和 runnable 操作。 */
 export function registerGoBenchRunnables(options: {
+  context: vscode.ExtensionContext;
   provider: GoBenchRunnablesProvider;
   output: vscode.OutputChannel;
 }): vscode.Disposable {
   const runningTerminals = new Map<string, vscode.Terminal>();
   const debugSessions = new Map<string, vscode.DebugSession>();
-  const debugConsoles = new GoBenchDebugConsolePanel();
+  const debugConsoles = new GoBenchDebugConsolePanel(options.context);
   const pendingDebugSessionItems = new Map<string, string>();
   const resumedDebugStackSuppressions = new Map<string, number>();
   const runnableNodeClicks = new Map<string, number>();

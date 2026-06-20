@@ -76,6 +76,10 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.openRunnableStackFrame, 'goBench.runnables.openStackFrame');
     assert.equal(commands.focusRunnableDebugConsole, 'goBench.runnables.focusDebugConsole');
     assert.equal(commands.evaluateRunnableDebugConsole, 'goBench.runnables.debug.evaluate');
+    assert.equal(commands.clearPanelDebugConsole, 'goBench.panel.debugConsole.clear');
+    assert.equal(commands.clearEndedPanelDebugConsole, 'goBench.panel.debugConsole.clearEnded');
+    assert.equal(commands.searchPanelDebugConsole, 'goBench.panel.debugConsole.search');
+    assert.equal(commands.filterPanelDebugConsole, 'goBench.panel.debugConsole.filter');
     assert.equal(commands.focusRunnableResult, 'goBench.runnables.focusResult');
     assert.equal(commands.copyRunnablePath, 'goBench.runnables.copyPath');
   });

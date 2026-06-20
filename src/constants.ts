@@ -119,6 +119,14 @@ export const commands = {
   focusRunnableDebugConsole: 'goBench.runnables.focusDebugConsole',
   /** 在 Go Bench runnable 对应的 Debug Console 中执行表达式。 */
   evaluateRunnableDebugConsole: 'goBench.runnables.debug.evaluate',
+  /** 清空 Go Bench Debug Console 当前 session 输出。 */
+  clearPanelDebugConsole: 'goBench.panel.debugConsole.clear',
+  /** 清空 Go Bench Debug Console 已结束 session 历史。 */
+  clearEndedPanelDebugConsole: 'goBench.panel.debugConsole.clearEnded',
+  /** 查询 Go Bench Debug Console 当前 session 日志。 */
+  searchPanelDebugConsole: 'goBench.panel.debugConsole.search',
+  /** 过滤 Go Bench Debug Console 当前 session 日志。 */
+  filterPanelDebugConsole: 'goBench.panel.debugConsole.filter',
   /** 聚焦 Go Bench runnable 当前运行或调试结果视图。 */
   focusRunnableResult: 'goBench.runnables.focusResult',
   /** 复制 Go Bench runnable 的绝对路径。 */

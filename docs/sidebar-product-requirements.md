@@ -683,10 +683,12 @@ CodeLens 行为要求：
 - 在 VSCode 底部 panel 中创建新的 `Go Bench` tab，并在其中放置 Go Bench 自定义 Debug Console webview。
 - 为 runnable debug session 在 Go Bench panel 内创建可切换 session tab，标题直接使用 runnable label，不显示 `Go Bench Debug:` 前缀，避免依赖 VSCode 原生 Debug Console 的内部 session label 切换能力。
 - Go Bench panel 右侧以树形结构展示 debug sessions，区分正在运行和已经结束的 session；已结束 session 按结束时间倒序排列，最多保留 100 条历史记录。
-- `Running` 和 `Ended` 必须作为树形结构的根节点，session 作为其子节点缩进展示；session 节点标题必须单行省略，并通过节点说明或 tooltip 提示运行时长、结束时间等信息。
-- session 历史仅保存在扩展进程内存中；用户必须可以删除单条已结束 session，也可以一次清空所有已结束 session。
+- `Running` 和 `Ended` 必须作为树形结构的根节点，session 作为其子节点缩进展示；根节点必须支持展开和收起；session 节点标题必须单行省略，并通过节点说明或 tooltip 提示运行时长、开始时间和结束时间等信息。
+- session 节点图标和 inline action 需要与 Run and Debug 视图中的 runnable 节点保持一致：运行中 session 显示调试态图标并提供停止、重启、暂停、打开文件等操作；已结束 session 显示对应 runnable 类型图标并提供运行、调试、打开文件和删除历史操作。
+- 已结束 session 历史需要持久化：session 元数据保存到 VSCode `workspaceState`，日志正文保存到扩展 `storageUri` 下的 Go Bench debug session 日志文件；用户必须可以删除单条已结束 session，也可以通过 panel 标题栏按钮一次清空所有已结束 session，并同步删除对应日志文件。
 - debug adapter 发出的 DAP `output` 事件必须写入对应 runnable session，stdout、stderr、console、important 等类别保持可区分展示。
-- Go Bench panel 内必须支持清空当前 session 输出信息，并保留停止或终止 debug session 后的历史输出，方便继续查看本次调试结果。
+- Go Bench panel 的 view title 必须提供和 VSCode 原生 Debug Console 同级的操作按钮：清空当前 session 输出、清空已结束 session；清空当前 session 输出时需要同步重写持久化日志。
+- Go Bench panel 内必须支持查询和过滤当前 session 日志：顶部查询条提供一个输入框和一个 filter toggle 按钮；默认 search 模式用于高亮匹配日志行，filter toggle 选中时切换为 filter 模式并只显示匹配日志行；过滤语法支持 `text` 和 `!exclude`，空查询或空过滤条件用于恢复完整日志。
 - Go Bench panel 内必须支持 Debug Console 的 REPL evaluate 能力：用户在 panel 输入表达式后通过当前 debug session 发送 `evaluate` 请求，暂停在栈帧时带上当前 frameId。
 - 点击调试中的 runnable 或启动 runnable 调试时聚焦 `Go Bench` panel tab 中对应的 debug session，而不是原生 Debug Console、Output view 或 terminal。
 - 补充 DAP 输出格式化和 debug session 标题测试，里程碑文档记录实现范围、验证命令、手动验证步骤和已知边界。

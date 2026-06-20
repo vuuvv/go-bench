@@ -339,6 +339,26 @@ describe('VSCode extension manifest', () => {
         title: 'Evaluate in Debug Console'
       },
       {
+        command: commands.clearPanelDebugConsole,
+        title: 'Clear Debug Console',
+        icon: '$(clear-all)'
+      },
+      {
+        command: commands.clearEndedPanelDebugConsole,
+        title: 'Clear Ended Debug Sessions',
+        icon: '$(trash)'
+      },
+      {
+        command: commands.searchPanelDebugConsole,
+        title: 'Search Debug Console',
+        icon: '$(search)'
+      },
+      {
+        command: commands.filterPanelDebugConsole,
+        title: 'Filter Debug Console',
+        icon: '$(filter)'
+      },
+      {
         command: commands.copyRunnablePath,
         title: 'Copy Path'
       }
@@ -490,6 +510,16 @@ describe('VSCode extension manifest', () => {
         command: commands.createRunnableGroup,
         when: `view == ${sidebarViewIds.runAndDebug}`,
         group: 'navigation@4'
+      },
+      {
+        command: commands.clearPanelDebugConsole,
+        when: `view == ${debugPanelViewIds.debugConsole}`,
+        group: 'navigation@0'
+      },
+      {
+        command: commands.clearEndedPanelDebugConsole,
+        when: `view == ${debugPanelViewIds.debugConsole}`,
+        group: 'navigation@1'
       },
       {
         command: commands.toggleTestTreeModeFromGoBench,

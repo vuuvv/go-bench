@@ -1,6 +1,8 @@
+import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import * as vscode from 'vscode';
-import { debugPanelViewIds } from './constants';
+import { commands, configurationKeys, debugPanelViewIds } from './constants';
 import { formatDebugConsoleOutput, formatDebugConsoleSessionTitle, isDapOutputEventMessage } from './debugConsoleModel';
+import type { GoBenchRunnableItem, GoBenchRunnableKind } from './runnablesModel';
 
 type DapEvaluateResponse = {
   result?: string;
@@ -18,24 +20,57 @@ type WebviewMessage =
   | { command: 'select'; itemId?: string }
   | { command: 'clear'; itemId?: string }
   | { command: 'deleteEnded'; itemId?: string }
-  | { command: 'deleteAllEnded' }
+  | { command: 'setSearchQuery'; value?: string }
+  | { command: 'setFilterQuery'; value?: string }
+  | { command: 'runnableAction'; itemId?: string; action?: DebugConsoleRunnableAction }
   | { command: 'evaluate'; itemId?: string; expression?: string };
 
 const maxEndedDebugConsoles = 100;
+const persistedSessionsKey = 'goBench.debugConsole.sessions';
+
+type DebugConsoleRunnableAction = 'run' | 'debug' | 'stop' | 'restart' | 'pause' | 'reveal';
+
+type PersistedDebugConsoleSession = {
+  itemId: string;
+  runnableId: string;
+  label: string;
+  startedAt: number;
+  endedAt?: number;
+  logFile: string;
+};
 
 export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vscode.Disposable {
   private readonly consoles = new Map<string, GoBenchDebugConsole>();
   private readonly activeConsoleIdsByRunnable = new Map<string, string>();
   private readonly disposables: vscode.Disposable[] = [];
+  private readonly logsDirectory: vscode.Uri | undefined;
   private view: vscode.WebviewView | undefined;
   private activeItemId: string | undefined;
+  private searchQuery = '';
+  private filterQuery = '';
 
-  public constructor() {
+  public constructor(private readonly context: vscode.ExtensionContext) {
+    this.logsDirectory = context.storageUri ? vscode.Uri.joinPath(context.storageUri, 'go-bench-debug-sessions') : undefined;
     this.disposables.push(vscode.window.registerWebviewViewProvider(debugPanelViewIds.debugConsole, this, {
       webviewOptions: {
         retainContextWhenHidden: true
       }
     }));
+    this.disposables.push(
+      vscode.commands.registerCommand(commands.clearPanelDebugConsole, () => {
+        this.clearActiveConsole();
+      }),
+      vscode.commands.registerCommand(commands.clearEndedPanelDebugConsole, () => {
+        this.deleteAllEndedConsoles();
+      }),
+      vscode.commands.registerCommand(commands.searchPanelDebugConsole, async () => {
+        this.focusSearchQuery();
+      }),
+      vscode.commands.registerCommand(commands.filterPanelDebugConsole, async () => {
+        this.focusFilterQuery();
+      })
+    );
+    void this.restorePersistedSessions();
   }
 
   public getOrCreateConsole(runnableId: string, label: string): GoBenchDebugConsole {
@@ -47,11 +82,17 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
     }
     if (!debugConsole) {
       const consoleId = `${runnableId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
-      debugConsole = new GoBenchDebugConsole(consoleId, runnableId, label, this);
+      debugConsole = new GoBenchDebugConsole({
+        itemId: consoleId,
+        runnableId,
+        label,
+        panel: this
+      });
       this.consoles.set(consoleId, debugConsole);
       this.activeConsoleIdsByRunnable.set(runnableId, consoleId);
       this.activeItemId = consoleId;
       this.postState();
+      void this.persistSessions();
     }
     return debugConsole;
   }
@@ -75,6 +116,7 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
     for (const [consoleId, debugConsole] of this.consoles) {
       if (debugConsole.runnableId === runnableId || consoleId === activeConsoleId) {
         this.consoles.delete(consoleId);
+        void this.deleteLogFile(debugConsole);
       }
     }
     this.activeConsoleIdsByRunnable.delete(runnableId);
@@ -82,6 +124,7 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
       this.activeItemId = this.selectDefaultActiveItemId();
     }
     this.postState();
+    void this.persistSessions();
   }
 
   public deleteEndedConsole(itemId: string): void {
@@ -90,22 +133,26 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
       return;
     }
     this.consoles.delete(itemId);
+    void this.deleteLogFile(debugConsole);
     if (this.activeItemId === itemId) {
       this.activeItemId = this.selectDefaultActiveItemId();
     }
     this.postState();
+    void this.persistSessions();
   }
 
   public deleteAllEndedConsoles(): void {
     for (const [itemId, debugConsole] of this.consoles) {
       if (debugConsole.ended) {
         this.consoles.delete(itemId);
+        void this.deleteLogFile(debugConsole);
       }
     }
     if (this.activeItemId && !this.consoles.has(this.activeItemId)) {
       this.activeItemId = this.selectDefaultActiveItemId();
     }
     this.postState();
+    void this.persistSessions();
   }
 
   public showConsole(itemId: string, options: { focusInput?: boolean } = {}): void {
@@ -126,12 +173,21 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
     }
     this.pruneEndedConsoles();
     this.postState();
+    void this.persistSessions();
+  }
+
+  public recordMessage(debugConsole: GoBenchDebugConsole, message: DebugConsoleMessage): void {
+    this.notifyChanged(debugConsole.itemId);
+    void this.appendLogMessage(debugConsole, message);
   }
 
   public resolveWebviewView(webviewView: vscode.WebviewView): void {
     this.view = webviewView;
-    webviewView.webview.options = { enableScripts: true };
-    webviewView.webview.html = buildDebugConsoleHtml(webviewView.webview);
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, 'media')]
+    };
+    webviewView.webview.html = buildDebugConsoleHtml(webviewView.webview, this.context.extensionUri);
     this.disposables.push(webviewView.webview.onDidReceiveMessage(message => {
       void this.handleWebviewMessage(message as WebviewMessage);
     }));
@@ -161,8 +217,15 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
       return;
     }
 
-    if (message.command === 'deleteAllEnded') {
-      this.deleteAllEndedConsoles();
+    if (message.command === 'setSearchQuery') {
+      this.searchQuery = message.value ?? '';
+      this.postState();
+      return;
+    }
+
+    if (message.command === 'setFilterQuery') {
+      this.filterQuery = message.value ?? '';
+      this.postState();
       return;
     }
 
@@ -173,6 +236,11 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
 
     if (message.command === 'deleteEnded') {
       this.deleteEndedConsole(itemId);
+      return;
+    }
+
+    if (message.command === 'runnableAction') {
+      await this.runRunnableAction(itemId, message.action);
       return;
     }
 
@@ -197,20 +265,80 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
     }
   }
 
-  private postState(options: { focusInput?: boolean } = {}): void {
+  private postState(options: { focusInput?: boolean; focusSearch?: boolean; focusFilter?: boolean } = {}): void {
     const view = this.view;
     if (!view) {
       return;
     }
 
-    const sessions = this.sortConsolesForView().map(debugConsole => debugConsole.toSnapshot());
+    const runnableItems = this.readRunnableItems();
+    const sessions = this.sortConsolesForView().map(debugConsole => debugConsole.toSnapshot(
+      runnableItems.find(item => item.id === debugConsole.runnableId)
+    ));
     const activeItemId = this.activeItemId ?? sessions[0]?.itemId;
     void view.webview.postMessage({
       command: 'state',
       activeItemId,
       focusInput: options.focusInput === true,
+      focusSearch: options.focusSearch === true,
+      focusFilter: options.focusFilter === true,
+      searchQuery: this.searchQuery,
+      filterQuery: this.filterQuery,
       sessions
     });
+  }
+
+  private clearActiveConsole(): void {
+    const itemId = this.activeItemId;
+    const debugConsole = itemId ? this.consoles.get(itemId) : undefined;
+    debugConsole?.clear();
+  }
+
+  private focusSearchQuery(): void {
+    this.reveal();
+    this.postState({ focusSearch: true });
+  }
+
+  private focusFilterQuery(): void {
+    this.reveal();
+    this.postState({ focusFilter: true });
+  }
+
+  private async runRunnableAction(itemId: string, action: DebugConsoleRunnableAction | undefined): Promise<void> {
+    const debugConsole = this.consoles.get(itemId);
+    const runnableItem = debugConsole ? this.readRunnableItems().find(item => item.id === debugConsole.runnableId) : undefined;
+    if (!runnableItem || !action) {
+      return;
+    }
+
+    const command = this.resolveRunnableActionCommand(action);
+    if (!command) {
+      return;
+    }
+    await vscode.commands.executeCommand(command, runnableItem);
+  }
+
+  private resolveRunnableActionCommand(action: DebugConsoleRunnableAction): string | undefined {
+    switch (action) {
+      case 'run':
+        return commands.runRunnable;
+      case 'debug':
+        return commands.debugRunnable;
+      case 'stop':
+        return commands.stopRunnable;
+      case 'restart':
+        return commands.restartRunnable;
+      case 'pause':
+        return commands.pauseRunnableDebug;
+      case 'reveal':
+        return commands.revealRunnable;
+      default:
+        return undefined;
+    }
+  }
+
+  private readRunnableItems(): GoBenchRunnableItem[] {
+    return vscode.workspace.getConfiguration().get<GoBenchRunnableItem[]>(configurationKeys.runnableItems, []);
   }
 
   private sortConsolesForView(): GoBenchDebugConsole[] {
@@ -232,6 +360,7 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
     const expired = ended.slice(maxEndedDebugConsoles);
     for (const debugConsole of expired) {
       this.consoles.delete(debugConsole.itemId);
+      void this.deleteLogFile(debugConsole);
     }
     if (this.activeItemId && !this.consoles.has(this.activeItemId)) {
       this.activeItemId = this.selectDefaultActiveItemId();
@@ -241,20 +370,113 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
   private selectDefaultActiveItemId(): string | undefined {
     return this.sortConsolesForView()[0]?.itemId;
   }
+
+  private async restorePersistedSessions(): Promise<void> {
+    const persisted = this.context.workspaceState.get<PersistedDebugConsoleSession[]>(persistedSessionsKey, []);
+    for (const session of persisted.slice(0, maxEndedDebugConsoles)) {
+      const messages = await this.readLogMessages(session.logFile);
+      const debugConsole = new GoBenchDebugConsole({
+        itemId: session.itemId,
+        runnableId: session.runnableId,
+        label: session.label,
+        panel: this,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt ?? Date.now(),
+        messages,
+        logFile: session.logFile
+      });
+      this.consoles.set(session.itemId, debugConsole);
+    }
+    this.activeItemId = this.selectDefaultActiveItemId();
+    this.postState();
+  }
+
+  private async persistSessions(): Promise<void> {
+    const ended = this.sortConsolesForView()
+      .filter(debugConsole => debugConsole.ended)
+      .slice(0, maxEndedDebugConsoles)
+      .map(debugConsole => debugConsole.toPersistedSession());
+    await this.context.workspaceState.update(persistedSessionsKey, ended);
+  }
+
+  private async appendLogMessage(debugConsole: GoBenchDebugConsole, message: DebugConsoleMessage): Promise<void> {
+    if (!this.logsDirectory) {
+      return;
+    }
+    await mkdir(this.logsDirectory.fsPath, { recursive: true });
+    await appendFile(this.resolveLogFile(debugConsole.logFile).fsPath, `${JSON.stringify(message)}\n`, 'utf8');
+  }
+
+  private async readLogMessages(logFile: string): Promise<DebugConsoleMessage[]> {
+    if (!this.logsDirectory) {
+      return [];
+    }
+    try {
+      const text = await readFile(this.resolveLogFile(logFile).fsPath, 'utf8');
+      return text
+        .split(/\r?\n/)
+        .filter(line => line.trim() !== '')
+        .map(line => JSON.parse(line) as DebugConsoleMessage)
+        .filter(isDebugConsoleMessage);
+    } catch {
+      return [];
+    }
+  }
+
+  public async rewriteLogFile(debugConsole: GoBenchDebugConsole): Promise<void> {
+    if (!this.logsDirectory) {
+      return;
+    }
+    await mkdir(this.logsDirectory.fsPath, { recursive: true });
+    await writeFile(
+      this.resolveLogFile(debugConsole.logFile).fsPath,
+      debugConsole.messages.map(message => JSON.stringify(message)).join('\n'),
+      'utf8'
+    );
+  }
+
+  private async deleteLogFile(debugConsole: GoBenchDebugConsole): Promise<void> {
+    if (!this.logsDirectory) {
+      return;
+    }
+    await rm(this.resolveLogFile(debugConsole.logFile).fsPath, { force: true });
+  }
+
+  private resolveLogFile(logFile: string): vscode.Uri {
+    return this.logsDirectory ? vscode.Uri.joinPath(this.logsDirectory, logFile) : vscode.Uri.file(logFile);
+  }
 }
 
 export class GoBenchDebugConsole {
-  private readonly messages: DebugConsoleMessage[] = [];
+  public readonly messages: DebugConsoleMessage[];
   private session: vscode.DebugSession | undefined;
   private endedAtValue: number | undefined;
-  public readonly startedAt = Date.now();
+  public readonly startedAt: number;
+  public readonly itemId: string;
+  public readonly runnableId: string;
+  public readonly logFile: string;
+  private readonly label: string;
+  private readonly panel: GoBenchDebugConsolePanel;
 
-  public constructor(
-    public readonly itemId: string,
-    public readonly runnableId: string,
-    private readonly label: string,
-    private readonly panel: GoBenchDebugConsolePanel
-  ) {}
+  public constructor(options: {
+    itemId: string;
+    runnableId: string;
+    label: string;
+    panel: GoBenchDebugConsolePanel;
+    startedAt?: number;
+    endedAt?: number;
+    messages?: DebugConsoleMessage[];
+    logFile?: string;
+  }) {
+    this.itemId = options.itemId;
+    this.runnableId = options.runnableId;
+    this.label = options.label;
+    this.panel = options.panel;
+    this.startedAt = options.startedAt ?? Date.now();
+    this.endedAtValue = options.endedAt;
+    this.messages = options.messages ?? [];
+    this.logFile = options.logFile ?? `${sanitizeLogFileName(options.itemId)}.jsonl`;
+  }
 
   public attachSession(session: vscode.DebugSession): void {
     this.session = session;
@@ -289,6 +511,7 @@ export class GoBenchDebugConsole {
   public clear(): void {
     this.messages.length = 0;
     this.panel.notifyChanged(this.itemId);
+    void this.panel.rewriteLogFile(this);
   }
 
   public matchesSession(session: vscode.DebugSession): boolean {
@@ -335,12 +558,14 @@ export class GoBenchDebugConsole {
     this.show({ focusInput: true });
   }
 
-  public toSnapshot(): {
+  public toSnapshot(runnableItem?: GoBenchRunnableItem): {
     itemId: string;
     title: string;
     connected: boolean;
     startedAt: number;
     endedAt?: number;
+    runnableExists: boolean;
+    runnableKind?: GoBenchRunnableKind;
     messages: DebugConsoleMessage[];
   } {
     return {
@@ -349,7 +574,20 @@ export class GoBenchDebugConsole {
       connected: this.connected,
       startedAt: this.startedAt,
       endedAt: this.endedAtValue,
+      runnableExists: runnableItem !== undefined,
+      runnableKind: runnableItem?.kind,
       messages: [...this.messages]
+    };
+  }
+
+  public toPersistedSession(): PersistedDebugConsoleSession {
+    return {
+      itemId: this.itemId,
+      runnableId: this.runnableId,
+      label: this.label,
+      startedAt: this.startedAt,
+      endedAt: this.endedAtValue,
+      logFile: this.logFile
     };
   }
 
@@ -374,9 +612,29 @@ export class GoBenchDebugConsole {
   }
 
   private appendMessage(kind: DebugConsoleMessage['kind'], text: string): void {
-    this.messages.push({ kind, text });
-    this.panel.notifyChanged(this.itemId);
+    const message = { kind, text };
+    this.messages.push(message);
+    this.panel.recordMessage(this, message);
   }
+}
+
+function isDebugConsoleMessage(value: unknown): value is DebugConsoleMessage {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const candidate = value as { kind?: unknown; text?: unknown };
+  return (
+    typeof candidate.text === 'string' &&
+    (candidate.kind === 'output' ||
+      candidate.kind === 'input' ||
+      candidate.kind === 'result' ||
+      candidate.kind === 'error' ||
+      candidate.kind === 'status')
+  );
+}
+
+function sanitizeLogFileName(value: string): string {
+  return value.replace(/[^A-Za-z0-9_-]/g, '_');
 }
 
 export function resolveActiveDebugFrameId(session: vscode.DebugSession): number | undefined {
@@ -387,14 +645,15 @@ export function resolveActiveDebugFrameId(session: vscode.DebugSession): number 
   return activeStackItem.frameId;
 }
 
-function buildDebugConsoleHtml(webview: vscode.Webview): string {
+function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   const nonce = createNonce();
   const cspSource = webview.cspSource;
+  const iconUris = createVscodeIconUris(webview, extensionUri);
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${cspSource}; style-src ${cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body {
@@ -419,14 +678,95 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       min-height: 0;
       flex-direction: column;
     }
+    .query-control {
+      height: 24px;
+      color: var(--vscode-input-foreground);
+      background: var(--vscode-input-background);
+      border: 0;
+      border-radius: 2px;
+      padding: 2px 8px 2px 28px;
+      font: inherit;
+      box-sizing: border-box;
+      outline: none;
+    }
+    .query-input-shell {
+      display: flex;
+      flex: 1 1 auto;
+      min-width: 0;
+      position: relative;
+      align-items: center;
+      background: var(--vscode-input-background);
+      border: 1px solid var(--vscode-input-border, transparent);
+      border-radius: 2px;
+    }
+    .query-input-shell:focus-within {
+      border-color: var(--vscode-focusBorder);
+    }
+    .query-mode-icon {
+      display: flex;
+      position: absolute;
+      left: 7px;
+      width: 16px;
+      height: 16px;
+      pointer-events: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .query-mode-icon img {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+    .query-icon-button {
+      display: flex;
+      flex: 0 0 24px;
+      width: 24px;
+      height: 24px;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      color: var(--vscode-icon-foreground);
+      background: transparent;
+      cursor: pointer;
+      padding: 3px;
+      align-items: center;
+      justify-content: center;
+    }
+    .query-icon-button:hover,
+    .query-icon-button:focus,
+    .query-icon-button.active {
+      background: var(--vscode-toolbar-hoverBackground);
+      border-color: var(--vscode-input-border, transparent);
+    }
+    .query-icon-button img {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+    .search-bar {
+      display: flex;
+      flex: 0 0 auto;
+      min-width: 0;
+      height: 34px;
+      padding: 4px 8px;
+      gap: 4px;
+      border-bottom: 1px solid var(--vscode-panel-border);
+      background: var(--vscode-panel-background, var(--vscode-editor-background));
+      box-sizing: border-box;
+      align-items: center;
+    }
+    .search-input {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: 100%;
+    }
     .session-rail {
       display: flex;
       flex: 0 0 220px;
       min-width: 160px;
       max-width: 420px;
       flex-direction: column;
-      gap: 6px;
-      padding: 8px;
+      gap: 0;
+      padding: 4px 0 4px 6px;
       background: var(--vscode-sideBar-background);
       box-sizing: border-box;
     }
@@ -452,27 +792,77 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       min-width: 0;
     }
     .tree-root-label {
-      color: var(--vscode-descriptionForeground);
-      font-size: 11px;
-      text-transform: uppercase;
-      padding: 4px 4px 2px;
+      display: flex;
+      width: 100%;
+      height: 22px;
+      border: 0;
+      color: var(--vscode-foreground);
+      background: transparent;
+      padding: 0 6px 0 0;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+      line-height: 22px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      text-align: left;
+      align-items: center;
+      gap: 5px;
+    }
+    .tree-root-label:hover {
+      color: var(--vscode-foreground);
+      background: var(--vscode-list-hoverBackground);
+    }
+    .tree-root-twistie {
+      display: flex;
+      flex: 0 0 22px;
+      height: 22px;
+      color: var(--vscode-icon-foreground);
+      align-items: center;
+      justify-content: center;
+    }
+    .tree-root-twistie::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-right: 1.5px solid currentColor;
+      border-bottom: 1.5px solid currentColor;
+      box-sizing: border-box;
+    }
+    .tree-root-twistie.expanded::before {
+      transform: translateY(-1px) rotate(45deg);
+    }
+    .tree-root-twistie.collapsed::before {
+      transform: translateX(-1px) rotate(-45deg);
+    }
+    .tree-root-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .tree-children {
       display: flex;
       flex-direction: column;
-      gap: 2px;
       min-width: 0;
+      margin-left: 10px;
       padding-left: 12px;
+      position: relative;
+    }
+    .tree-children::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      border-left: 1px solid var(--vscode-tree-indentGuidesStroke, var(--vscode-panel-border));
     }
     .tabs {
       display: flex;
       flex: 1;
       min-height: 0;
       flex-direction: column;
-      gap: 2px;
       overflow-y: auto;
     }
     .tab {
@@ -481,15 +871,20 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       color: var(--vscode-foreground);
       background: transparent;
       width: 100%;
-      min-height: 28px;
-      padding: 5px 8px;
-      border-radius: 3px;
+      height: 22px;
+      min-height: 22px;
+      padding: 0 6px 0 0;
+      border-radius: 0;
       cursor: pointer;
       font: inherit;
+      line-height: 22px;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       text-align: left;
       overflow: hidden;
+    }
+    .tab:hover {
+      background: var(--vscode-list-hoverBackground);
     }
     .tab.active {
       background: var(--vscode-list-activeSelectionBackground);
@@ -497,6 +892,26 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
     }
     .tab.disconnected {
       color: var(--vscode-descriptionForeground);
+    }
+    .session-icon {
+      display: flex;
+      flex: 0 0 18px;
+      width: 18px;
+      height: 18px;
+      align-items: center;
+      justify-content: center;
+      color: var(--vscode-icon-foreground);
+    }
+    .session-icon.debugging {
+      color: var(--vscode-debugIcon-continueForeground);
+    }
+    .session-icon.running {
+      color: var(--vscode-debugIcon-startForeground);
+    }
+    .session-icon img {
+      width: 16px;
+      height: 16px;
+      display: block;
     }
     .tab-title {
       display: block;
@@ -509,12 +924,52 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
     .tab-meta {
       display: block;
       flex: 0 0 auto;
-      max-width: 82px;
+      max-width: 104px;
       color: var(--vscode-descriptionForeground);
       font-size: 11px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .tab:hover .tab-meta,
+    .tab.active .tab-meta,
+    .tab:focus-within .tab-meta {
+      display: none;
+    }
+    .tab-actions {
+      display: none;
+      flex: 0 0 auto;
+      align-items: center;
+      gap: 1px;
+      margin-left: 2px;
+    }
+    .tab:hover .tab-actions,
+    .tab.active .tab-actions,
+    .tab:focus-within .tab-actions {
+      display: flex;
+    }
+    .inline-action {
+      display: flex;
+      flex: 0 0 18px;
+      width: 18px;
+      height: 18px;
+      border: 0;
+      border-radius: 3px;
+      color: var(--vscode-icon-foreground);
+      background: transparent;
+      cursor: pointer;
+      padding: 1px;
+      align-items: center;
+      justify-content: center;
+    }
+    .inline-action img {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+    .inline-action:hover,
+    .inline-action:focus {
+      background: var(--vscode-toolbar-hoverBackground);
     }
     .delete-session {
       flex: 0 0 18px;
@@ -575,6 +1030,10 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
     .message.error { color: var(--vscode-errorForeground); }
     .message.status { color: var(--vscode-descriptionForeground); }
     .message.result { color: var(--vscode-debugTokenExpression-value); }
+    .message.search-match {
+      background: var(--vscode-editor-findMatchHighlightBackground);
+      outline: 1px solid var(--vscode-editor-findMatchBorder, transparent);
+    }
     .repl {
       display: flex;
       gap: 6px;
@@ -603,6 +1062,13 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
 <body>
   <div class="layout">
     <main class="main">
+      <div id="searchBar" class="search-bar">
+        <div class="query-input-shell">
+          <span id="queryModeIcon" class="query-mode-icon" aria-hidden="true"></span>
+          <input id="queryInput" class="query-control search-input" autocomplete="off" spellcheck="false" placeholder="Search">
+        </div>
+        <button id="filterToggle" class="query-icon-button" type="button" title="Switch to Filter"></button>
+      </div>
       <div id="console" class="console"></div>
       <form id="repl" class="repl">
         <span class="prompt">&gt;</span>
@@ -612,54 +1078,87 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
     </main>
     <div id="resizeHandle" class="resize-handle" role="separator" aria-orientation="vertical" title="Resize sessions"></div>
     <aside class="session-rail">
-      <div id="tabs" class="tabs"></div>
-      <button id="clear" class="action secondary" type="button">Clear</button>
-      <button id="clearEnded" class="action secondary" type="button">Clear Ended</button>
+      <div id="tabs" class="tabs" role="tree"></div>
     </aside>
   </div>
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const tabs = document.getElementById('tabs');
     const consoleView = document.getElementById('console');
+    const queryModeIcon = document.getElementById('queryModeIcon');
+    const queryInput = document.getElementById('queryInput');
+    const filterToggle = document.getElementById('filterToggle');
     const form = document.getElementById('repl');
     const input = document.getElementById('input');
-    const clear = document.getElementById('clear');
-    const clearEnded = document.getElementById('clearEnded');
     const resizeHandle = document.getElementById('resizeHandle');
     const sessionRail = document.querySelector('.session-rail');
     const persisted = vscode.getState() || {};
+    const iconUris = ${JSON.stringify(iconUris)};
+    let collapsedGroups = persisted.collapsedGroups || {};
+    let queryMode = persisted.queryMode === 'filter' ? 'filter' : 'search';
     if (typeof persisted.sessionRailWidth === 'number') {
       setSessionRailWidth(persisted.sessionRailWidth);
     }
     let state = { sessions: [], activeItemId: undefined };
     let resizeStartX = 0;
     let resizeStartWidth = 0;
+    filterToggle.append(createIcon('filter'));
+    queryModeIcon.append(createIcon('search'));
 
     window.addEventListener('message', event => {
       if (event.data.command !== 'state') {
         return;
+      }
+      if (event.data.focusSearch) {
+        setQueryMode('search', { focus: false });
+      }
+      if (event.data.focusFilter) {
+        setQueryMode('filter', { focus: false });
       }
       state = event.data;
       render();
       if (event.data.focusInput) {
         input.focus();
       }
+      if (event.data.focusSearch) {
+        queryInput.focus();
+        queryInput.select();
+      }
+      if (event.data.focusFilter) {
+        queryInput.focus();
+        queryInput.select();
+      }
     });
 
     tabs.addEventListener('click', event => {
-      const button = event.target.closest('button[data-id]');
-      if (!button) {
+      const groupButton = event.target.closest('button[data-group]');
+      if (groupButton) {
+        const group = groupButton.dataset.group;
+        collapsedGroups = { ...collapsedGroups, [group]: !collapsedGroups[group] };
+        updatePersistedState({ collapsedGroups });
+        render();
         return;
       }
-      vscode.postMessage({ command: 'select', itemId: button.dataset.id });
+      const item = event.target.closest('[data-session-id]');
+      if (!item) {
+        return;
+      }
+      vscode.postMessage({ command: 'select', itemId: item.dataset.sessionId });
     });
 
-    clear.addEventListener('click', () => {
-      vscode.postMessage({ command: 'clear', itemId: state.activeItemId });
-    });
-
-    clearEnded.addEventListener('click', () => {
-      vscode.postMessage({ command: 'deleteAllEnded' });
+    tabs.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+      if (event.target.closest('.inline-action')) {
+        return;
+      }
+      const item = event.target.closest('[data-session-id]');
+      if (!item) {
+        return;
+      }
+      event.preventDefault();
+      vscode.postMessage({ command: 'select', itemId: item.dataset.sessionId });
     });
 
     form.addEventListener('submit', event => {
@@ -671,6 +1170,17 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       const expression = input.value;
       input.value = '';
       vscode.postMessage({ command: 'evaluate', itemId: state.activeItemId, expression });
+    });
+
+    queryInput.addEventListener('input', () => {
+      vscode.postMessage({
+        command: queryMode === 'filter' ? 'setFilterQuery' : 'setSearchQuery',
+        value: queryInput.value
+      });
+    });
+
+    filterToggle.addEventListener('click', () => {
+      setQueryMode(queryMode === 'filter' ? 'search' : 'filter', { focus: true, preserveText: true });
     });
 
     resizeHandle.addEventListener('mousedown', event => {
@@ -692,7 +1202,7 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       resizeHandle.classList.remove('dragging');
       document.body.classList.remove('resizing');
       window.removeEventListener('mousemove', resizeSessions);
-      vscode.setState({ ...persisted, sessionRailWidth: sessionRail.getBoundingClientRect().width });
+      updatePersistedState({ sessionRailWidth: sessionRail.getBoundingClientRect().width });
     }
 
     function setSessionRailWidth(width) {
@@ -700,13 +1210,16 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       sessionRail.style.flexBasis = clamped + 'px';
     }
 
+    function updatePersistedState(patch) {
+      vscode.setState({ ...(vscode.getState() || {}), ...patch });
+    }
+
     function render() {
       const sessions = state.sessions || [];
       const active = findActiveSession();
       tabs.replaceChildren(...renderSessionTree(sessions, active));
-      clear.disabled = !active;
-      clearEnded.disabled = !sessions.some(session => !session.connected);
       input.disabled = !active?.connected;
+      renderQueryControls();
 
       if (!active) {
         consoleView.innerHTML = '<div class="empty">No Go Bench debug sessions yet.</div>';
@@ -714,14 +1227,58 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       }
 
       const fragment = document.createDocumentFragment();
-      for (const message of active.messages) {
+      const filterQuery = normalizeQuery(state.filterQuery);
+      const searchQuery = normalizeQuery(state.searchQuery);
+      const messages = filterQuery
+        ? active.messages.filter(message => matchesFilterQuery(message.text, state.filterQuery))
+        : active.messages;
+      for (const message of messages) {
         const span = document.createElement('span');
-        span.className = 'message ' + message.kind;
+        const matchesSearch = searchQuery && normalizeQuery(message.text).includes(searchQuery);
+        span.className = 'message ' + message.kind + (matchesSearch ? ' search-match' : '');
         span.textContent = message.text;
         fragment.appendChild(span);
       }
       consoleView.replaceChildren(fragment);
-      consoleView.scrollTop = consoleView.scrollHeight;
+      const firstMatch = consoleView.querySelector('.search-match');
+      if (firstMatch) {
+        firstMatch.scrollIntoView({ block: 'center' });
+      } else {
+        consoleView.scrollTop = consoleView.scrollHeight;
+      }
+    }
+
+    function renderQueryControls() {
+      const value = queryMode === 'filter' ? state.filterQuery || '' : state.searchQuery || '';
+      if (queryInput.value !== value) {
+        queryInput.value = value;
+      }
+      queryInput.placeholder = queryMode === 'filter' ? 'Filter (for example text, !exclude)' : 'Search';
+      queryModeIcon.replaceChildren(createIcon(queryMode === 'filter' ? 'filter' : 'search'));
+      filterToggle.classList.toggle('active', queryMode === 'filter');
+      filterToggle.title = queryMode === 'filter' ? 'Switch to Search' : 'Switch to Filter';
+    }
+
+    function setQueryMode(nextMode, options = {}) {
+      const text = queryInput.value;
+      queryMode = nextMode === 'filter' ? 'filter' : 'search';
+      updatePersistedState({ queryMode });
+      if (options.preserveText) {
+        state = {
+          ...state,
+          searchQuery: queryMode === 'search' ? text : state.searchQuery,
+          filterQuery: queryMode === 'filter' ? text : state.filterQuery
+        };
+        vscode.postMessage({
+          command: queryMode === 'filter' ? 'setFilterQuery' : 'setSearchQuery',
+          value: text
+        });
+      }
+      renderQueryControls();
+      if (options.focus) {
+        queryInput.focus();
+        queryInput.select();
+      }
     }
 
     function findActiveSession() {
@@ -741,43 +1298,105 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
     function createSessionGroup(label, sessions, active) {
       const root = document.createElement('div');
       root.className = 'tree-root';
-      const header = document.createElement('div');
+      const groupKey = label.toLowerCase();
+      const collapsed = collapsedGroups[groupKey] === true;
+      const header = document.createElement('button');
+      header.type = 'button';
       header.className = 'tree-root-label';
-      header.textContent = 'v ' + label + ' (' + sessions.length + ')';
+      header.dataset.group = groupKey;
+      header.title = (collapsed ? 'Expand ' : 'Collapse ') + label;
+      header.setAttribute('aria-expanded', String(!collapsed));
+      const twistie = document.createElement('span');
+      twistie.className = 'tree-root-twistie ' + (collapsed ? 'collapsed' : 'expanded');
+      twistie.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span');
+      text.className = 'tree-root-text';
+      text.textContent = label + ' (' + sessions.length + ')';
+      header.append(twistie, text);
       const children = document.createElement('div');
       children.className = 'tree-children';
-      children.replaceChildren(...sessions.map(session => createSessionButton(session, active)));
+      children.role = 'group';
+      if (!collapsed) {
+        children.replaceChildren(...sessions.map(session => createSessionButton(session, active)));
+      }
       root.append(header, children);
       return root;
     }
 
     function createSessionButton(session, active) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'tab' + (session.itemId === active?.itemId ? ' active' : '') + (session.connected ? '' : ' disconnected');
-        button.dataset.id = session.itemId;
-        button.title = formatSessionTooltip(session);
+        const item = document.createElement('div');
+        item.className = 'tab' + (session.itemId === active?.itemId ? ' active' : '') + (session.connected ? '' : ' disconnected');
+        item.dataset.sessionId = session.itemId;
+        item.role = 'treeitem';
+        item.tabIndex = 0;
+        item.title = formatSessionTooltip(session);
+        const icon = document.createElement('span');
+        icon.className = 'session-icon ' + (session.connected ? 'debugging' : '');
+        icon.append(createIcon(session.connected ? 'debug-alt' : session.runnableKind === 'goFile' ? 'go-to-file' : 'package'));
         const title = document.createElement('span');
         title.className = 'tab-title';
         title.textContent = session.title;
         const meta = document.createElement('span');
         meta.className = 'tab-meta';
         meta.textContent = formatSessionMeta(session);
-        button.append(title, meta);
-        if (!session.connected) {
-          const remove = document.createElement('button');
-          remove.type = 'button';
-          remove.className = 'delete-session';
-          remove.dataset.id = session.itemId;
-          remove.title = 'Delete ended session';
-          remove.textContent = 'x';
-          remove.addEventListener('click', event => {
-            event.stopPropagation();
-            vscode.postMessage({ command: 'deleteEnded', itemId: session.itemId });
-          });
-          button.append(remove);
+        const actions = document.createElement('span');
+        actions.className = 'tab-actions';
+        actions.append(...createSessionActions(session));
+        item.append(icon, title, meta, actions);
+        return item;
+    }
+
+    function createSessionActions(session) {
+      if (session.connected) {
+        return [
+          createInlineAction('stop', 'debug-stop', 'Stop'),
+          createInlineAction('restart', 'debug-restart', 'Restart'),
+          createInlineAction('pause', 'debug-pause', 'Pause'),
+          createInlineAction('reveal', 'go-to-file', 'Go to File')
+        ].filter(Boolean);
+      }
+      return [
+        session.runnableExists ? createInlineAction('run', 'debug-start', 'Run') : undefined,
+        session.runnableExists ? createInlineAction('debug', 'debug-alt', 'Debug') : undefined,
+        session.runnableExists ? createInlineAction('reveal', 'go-to-file', 'Go to File') : undefined,
+        createInlineAction('deleteEnded', 'trash', 'Delete ended session')
+      ].filter(Boolean);
+    }
+
+    function createInlineAction(action, iconName, title) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'inline-action';
+      button.title = title;
+      button.dataset.action = action;
+      button.append(createIcon(iconName));
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        const sessionItem = event.currentTarget.closest('[data-session-id]');
+        const itemId = sessionItem?.dataset.sessionId;
+        if (!itemId) {
+          return;
         }
-        return button;
+        if (action === 'deleteEnded') {
+          vscode.postMessage({ command: 'deleteEnded', itemId });
+          return;
+        }
+        vscode.postMessage({ command: 'runnableAction', itemId, action });
+      });
+      return button;
+    }
+
+    function createIcon(name) {
+      const image = document.createElement('img');
+      image.alt = '';
+      image.draggable = false;
+      image.src = resolveIconUri(name);
+      return image;
+    }
+
+    function resolveIconUri(name) {
+      const theme = document.body.classList.contains('vscode-light') ? 'light' : 'dark';
+      return iconUris[theme]?.[name] || iconUris.dark?.[name] || iconUris.light?.[name] || '';
     }
 
     function formatSessionMeta(session) {
@@ -817,6 +1436,31 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       return value ? new Date(value).toLocaleString() : 'unknown';
     }
 
+    function normalizeQuery(value) {
+      return String(value || '').toLowerCase();
+    }
+
+    function matchesFilterQuery(text, query) {
+      const normalizedText = normalizeQuery(text);
+      const terms = String(query || '')
+        .split(/[\\s,]+/)
+        .map(term => term.trim().toLowerCase())
+        .filter(Boolean);
+      for (const term of terms) {
+        if (term.startsWith('!')) {
+          const excluded = term.slice(1);
+          if (excluded && normalizedText.includes(excluded)) {
+            return false;
+          }
+          continue;
+        }
+        if (!normalizedText.includes(term)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     setInterval(() => {
       if ((state.sessions || []).some(session => session.connected)) {
         render();
@@ -827,6 +1471,33 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
   </script>
 </body>
 </html>`;
+}
+
+function createVscodeIconUris(webview: vscode.Webview, extensionUri: vscode.Uri): Record<string, Record<string, string>> {
+  const iconNames = [
+    'debug-alt',
+    'debug-pause',
+    'debug-restart',
+    'debug-start',
+    'debug-stop',
+    'close',
+    'filter',
+    'go-to-file',
+    'package',
+    'search',
+    'trash'
+  ];
+  const themes = ['light', 'dark'];
+  const iconUris: Record<string, Record<string, string>> = {};
+  for (const theme of themes) {
+    iconUris[theme] = {};
+    for (const iconName of iconNames) {
+      iconUris[theme][iconName] = webview.asWebviewUri(
+        vscode.Uri.joinPath(extensionUri, 'media', 'vscode-icons', theme, `${iconName}.svg`)
+      ).toString();
+    }
+  }
+  return iconUris;
 }
 
 function createNonce(): string {

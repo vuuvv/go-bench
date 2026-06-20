@@ -314,6 +314,26 @@
         "title": "Evaluate in Debug Console"
       },
       {
+        "command": "goBench.panel.debugConsole.clear",
+        "title": "Clear Debug Console",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "goBench.panel.debugConsole.clearEnded",
+        "title": "Clear Ended Debug Sessions",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "goBench.panel.debugConsole.search",
+        "title": "Search Debug Console",
+        "icon": "$(search)"
+      },
+      {
+        "command": "goBench.panel.debugConsole.filter",
+        "title": "Filter Debug Console",
+        "icon": "$(filter)"
+      },
+      {
         "command": "goBench.runnables.copyPath",
         "title": "Copy Path"
       }
@@ -414,6 +434,16 @@
           "command": "goBench.runnables.createGroup",
           "when": "view == goBench.sidebar.runAndDebug",
           "group": "navigation@4"
+        },
+        {
+          "command": "goBench.panel.debugConsole.clear",
+          "when": "view == goBench.panel.debugConsole",
+          "group": "navigation@0"
+        },
+        {
+          "command": "goBench.panel.debugConsole.clearEnded",
+          "when": "view == goBench.panel.debugConsole",
+          "group": "navigation@1"
         },
         {
           "command": "goBench.toggleTestTreeModeFromGoBench",

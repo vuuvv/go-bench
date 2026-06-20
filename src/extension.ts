@@ -184,6 +184,7 @@ export function activate(context: vscode.ExtensionContext): void {
     toggleTestTreeMode
   );
   const sidebarRegistration = registerGoBenchSidebar({
+    context,
     output: outputChannel,
     refreshTests: async () => {
       await vscode.commands.executeCommand(commands.refreshTestTree);

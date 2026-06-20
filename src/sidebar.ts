@@ -15,6 +15,7 @@ import { GoBenchSidebarTestsProvider, registerGoBenchSidebarTests } from './side
 
 /** 注册 Go Bench 侧边栏三个空视图及当前阶段可用的标题区命令。 */
 export function registerGoBenchSidebar(options: {
+  context: vscode.ExtensionContext;
   output: vscode.OutputChannel;
   refreshTests: () => Promise<void>;
   runTest: (target: GoTestRunTarget, options?: GoBenchRunTargetTestResultsOptions) => Promise<GoTestRunResult>;
@@ -51,6 +52,7 @@ export function registerGoBenchSidebar(options: {
     debugTest: options.debugTest
   });
   const runnablesRegistration = registerGoBenchRunnables({
+    context: options.context,
     provider: runAndDebugProvider,
     output: options.output
   });
