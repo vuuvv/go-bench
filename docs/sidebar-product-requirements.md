@@ -666,7 +666,8 @@ CodeLens 行为要求：
 ### 14.5 里程碑 16：运行与调试状态和分组批量操作补强
 
 - 修复 runnable debug 启动、终止和视图状态同步。
-- runnable 调试中点击项目时聚焦 Debug Console；普通项目点击只选中节点，打开源码改由 Go to File inline action 执行。
+- runnable 运行或调试中点击项目时聚焦对应结果视图：运行中回到 terminal，调试中回到 Debug Console；普通项目点击只选中节点，打开源码改由 Go to File inline action 执行。
+- runnable 节点名称旁不展示 `package main` 或 `package unknown` 这类 description，package 信息只保留在 tooltip 中。
 - 保留标准 debug inline 按钮：未运行项目显示 run/debug，运行或调试中显示 stop/restart。
 - group 节点补充批量 debug、批量 stop、批量 restart 和批量删除项目入口。
 - 停止 debug runnable 时同时停止 debug session，并尽力关闭 Debug Console 面板。

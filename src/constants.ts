@@ -99,6 +99,8 @@ export const commands = {
   revealRunnable: 'goBench.runnables.reveal',
   /** 聚焦 Go Bench runnable 对应的 Debug Console。 */
   focusRunnableDebugConsole: 'goBench.runnables.focusDebugConsole',
+  /** 聚焦 Go Bench runnable 当前运行或调试结果视图。 */
+  focusRunnableResult: 'goBench.runnables.focusResult',
   /** 复制 Go Bench runnable 的绝对路径。 */
   copyRunnablePath: 'goBench.runnables.copyPath'
 } as const;

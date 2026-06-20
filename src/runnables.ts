@@ -115,14 +115,13 @@ export class GoBenchRunnablesProvider
 
     const treeItem = new vscode.TreeItem(node.item.label, vscode.TreeItemCollapsibleState.None);
     const runtimeState = this.getRuntimeState(node.item.id);
-    treeItem.description = formatRunnableDescription(node.item);
     treeItem.tooltip = `${node.item.label}\n${node.item.uri}\npackage: ${node.item.packageName ?? 'unknown'}\nworkspace: ${node.item.workspaceFolder}`;
     treeItem.contextValue = formatRunnableContextValue(runtimeState);
     treeItem.iconPath = getRunnableIcon(node.item, runtimeState);
-    if (runtimeState === 'debugging') {
+    if (runtimeState !== 'stopped') {
       treeItem.command = {
-        command: commands.focusRunnableDebugConsole,
-        title: 'Focus Debug Console',
+        command: commands.focusRunnableResult,
+        title: 'Focus Result View',
         arguments: [node.item]
       };
     }
@@ -392,6 +391,13 @@ export function registerGoBenchRunnables(options: {
   const focusDebugConsoleCommand = vscode.commands.registerCommand(commands.focusRunnableDebugConsole, async () => {
     await focusDebugConsole();
   });
+  const focusResultCommand = vscode.commands.registerCommand(commands.focusRunnableResult, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
+    const item = normalizeRunnableCommandArgument(itemOrNode);
+    if (!item) {
+      return;
+    }
+    await focusRunnableResult(item, runtimeOptions);
+  });
   const copyPathCommand = vscode.commands.registerCommand(commands.copyRunnablePath, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
     const item = normalizeRunnableCommandArgument(itemOrNode);
     const workspaceFolder = item ? findWorkspaceFolderByName(item.workspaceFolder) : undefined;
@@ -426,6 +432,7 @@ export function registerGoBenchRunnables(options: {
     debugCommand,
     revealCommand,
     focusDebugConsoleCommand,
+    focusResultCommand,
     copyPathCommand,
     new vscode.Disposable(() => {
       runningTerminals.clear();
@@ -906,6 +913,24 @@ async function closeDebugConsole(): Promise<void> {
   }
 }
 
+async function focusRunnableResult(item: GoBenchRunnableItem, options: RunnableRuntimeOptions): Promise<void> {
+  const runtimeState = options.provider.getRuntimeState(item.id);
+  if (runtimeState === 'running') {
+    const terminal = options.runningTerminals.get(item.id);
+    if (terminal) {
+      terminal.show();
+      return;
+    }
+
+    options.provider.clearRuntimeState(item.id);
+    return;
+  }
+
+  if (runtimeState === 'debugging') {
+    await focusDebugConsole();
+  }
+}
+
 async function revealRunnable(item: GoBenchRunnableItem): Promise<void> {
   const workspaceFolder = findWorkspaceFolderByName(item.workspaceFolder);
   if (!workspaceFolder) {
@@ -1093,11 +1118,6 @@ function getRunnableIcon(item: GoBenchRunnableItem, state: RunnableRuntimeState)
     return new vscode.ThemeIcon('debug-alt', new vscode.ThemeColor('debugIcon.breakpointForeground'));
   }
   return new vscode.ThemeIcon(item.kind === 'goFile' ? 'go-to-file' : 'package');
-}
-
-function formatRunnableDescription(item: GoBenchRunnableItem): string {
-  const packagePart = item.packageName ? `package ${item.packageName}` : 'package unknown';
-  return item.kind === 'goFile' ? packagePart : `${packagePart} directory`;
 }
 
 function parseDraggedRunnableIds(rawValue: string): string[] {

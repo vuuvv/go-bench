@@ -65,6 +65,7 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.debugRunnable, 'goBench.runnables.debug');
     assert.equal(commands.revealRunnable, 'goBench.runnables.reveal');
     assert.equal(commands.focusRunnableDebugConsole, 'goBench.runnables.focusDebugConsole');
+    assert.equal(commands.focusRunnableResult, 'goBench.runnables.focusResult');
     assert.equal(commands.copyRunnablePath, 'goBench.runnables.copyPath');
   });
 
