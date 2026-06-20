@@ -59,6 +59,7 @@ type RunnableRuntimeOptions = {
   debugSessions: Map<string, vscode.DebugSession>;
   pendingDebugSessionItems: Map<string, string>;
   resumedDebugStackSuppressions: Map<string, number>;
+  runnableNodeClicks: Map<string, number>;
 };
 
 type RunnableRuntimeState = 'stopped' | 'running' | 'debugging';
@@ -91,6 +92,7 @@ type DapStackTraceResponse = {
 type RunnableDebugControlAction = 'pause' | 'continue' | 'stepOver' | 'stepInto' | 'stepOut';
 
 const runnableDragMimeType = 'application/vnd.code.tree.goBench.sidebar.runAndDebug';
+const runnableDoubleClickMs = 450;
 
 /** Run and Debug 视图的数据提供器，直接从 workspace settings 读取最新 runnable 列表。 */
 export class GoBenchRunnablesProvider
@@ -208,13 +210,11 @@ export class GoBenchRunnablesProvider
     treeItem.tooltip = `${node.item.label}\n${node.item.uri}\npackage: ${node.item.packageName ?? 'unknown'}\nworkspace: ${node.item.workspaceFolder}`;
     treeItem.contextValue = formatRunnableContextValue(runtimeState, debugState);
     treeItem.iconPath = getRunnableIcon(node.item, runtimeState, debugState);
-    if (runtimeState !== 'stopped') {
-      treeItem.command = {
-        command: commands.focusRunnableResult,
-        title: 'Focus Result View',
-        arguments: [node.item]
-      };
-    }
+    treeItem.command = {
+      command: commands.focusRunnableResult,
+      title: runtimeState === 'stopped' ? 'Open on Double Click' : 'Focus Result View',
+      arguments: [node.item]
+    };
     return treeItem;
   }
 
@@ -296,7 +296,15 @@ export function registerGoBenchRunnables(options: {
   const debugSessions = new Map<string, vscode.DebugSession>();
   const pendingDebugSessionItems = new Map<string, string>();
   const resumedDebugStackSuppressions = new Map<string, number>();
-  const runtimeOptions = { ...options, runningTerminals, debugSessions, pendingDebugSessionItems, resumedDebugStackSuppressions };
+  const runnableNodeClicks = new Map<string, number>();
+  const runtimeOptions = {
+    ...options,
+    runningTerminals,
+    debugSessions,
+    pendingDebugSessionItems,
+    resumedDebugStackSuppressions,
+    runnableNodeClicks
+  };
   const configurationSubscription = vscode.workspace.onDidChangeConfiguration(event => {
     if (event.affectsConfiguration(configurationKeys.runnableItems) || event.affectsConfiguration(configurationKeys.runnableGroups)) {
       options.provider.refresh();
@@ -577,7 +585,7 @@ export function registerGoBenchRunnables(options: {
     if (!item) {
       return;
     }
-    await focusRunnableResult(item, runtimeOptions);
+    await handleRunnableNodeClick(item, runtimeOptions);
   });
   const copyPathCommand = vscode.commands.registerCommand(commands.copyRunnablePath, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
     const item = normalizeRunnableCommandArgument(itemOrNode);
@@ -628,6 +636,7 @@ export function registerGoBenchRunnables(options: {
       debugSessions.clear();
       pendingDebugSessionItems.clear();
       resumedDebugStackSuppressions.clear();
+      runnableNodeClicks.clear();
     })
   );
 }
@@ -1081,6 +1090,8 @@ async function debugRunnable(
 
     options.provider.setRuntimeState(item.id, 'debugging');
     options.provider.setDebugState(item.id, 'running');
+    const session = await waitForRunnableDebugSession(item.id, options.debugSessions);
+    await focusDebugConsole(session);
   } catch (error) {
     options.pendingDebugSessionItems.delete(configuration.name);
     options.provider.clearRuntimeState(item.id);
@@ -1106,7 +1117,10 @@ async function runDebugControl(
   await executeDebugControlCommand(item, options, action);
 }
 
-async function focusDebugConsole(): Promise<void> {
+async function focusDebugConsole(session?: vscode.DebugSession): Promise<void> {
+  if (session) {
+    selectActiveDebugSession(session);
+  }
   try {
     await vscode.commands.executeCommand('workbench.debug.action.focusRepl');
   } catch {
@@ -1120,6 +1134,19 @@ async function closeDebugConsole(): Promise<void> {
   } catch {
     // 面板关闭只是停止调试后的清理体验，失败时保持 VSCode 默认行为。
   }
+}
+
+async function handleRunnableNodeClick(item: GoBenchRunnableItem, options: RunnableRuntimeOptions): Promise<void> {
+  const now = Date.now();
+  const previousClick = options.runnableNodeClicks.get(item.id) ?? 0;
+  options.runnableNodeClicks.set(item.id, now);
+  if (now - previousClick <= runnableDoubleClickMs) {
+    options.runnableNodeClicks.delete(item.id);
+    await revealRunnable(item);
+    return;
+  }
+
+  await focusRunnableResult(item, options);
 }
 
 async function focusRunnableResult(item: GoBenchRunnableItem, options: RunnableRuntimeOptions): Promise<void> {
@@ -1140,7 +1167,30 @@ async function focusRunnableResult(item: GoBenchRunnableItem, options: RunnableR
     if (session) {
       await refreshActiveDebugStackFrames(item.id, session, options.provider, options.output);
     }
-    await focusDebugConsole();
+    await focusDebugConsole(session);
+  }
+}
+
+async function waitForRunnableDebugSession(
+  itemId: string,
+  debugSessions: ReadonlyMap<string, vscode.DebugSession>
+): Promise<vscode.DebugSession | undefined> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 1_000) {
+    const session = debugSessions.get(itemId);
+    if (session) {
+      return session;
+    }
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  return debugSessions.get(itemId);
+}
+
+function selectActiveDebugSession(session: vscode.DebugSession): void {
+  try {
+    (vscode.debug as { activeDebugSession?: vscode.DebugSession }).activeDebugSession = session;
+  } catch {
+    // VSCode does not document setting the active debug session; focus still works for the current console.
   }
 }
 

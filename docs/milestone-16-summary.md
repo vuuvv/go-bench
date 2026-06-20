@@ -3,9 +3,9 @@
 ## 实现范围
 
 - runnable debug 启动后立即进入 `debugging` 状态，并通过 VSCode `onDidStartDebugSession` / `onDidTerminateDebugSession` 事件补齐 session 映射和终止同步。
-- 运行或调试中的 runnable 节点点击后聚焦对应结果视图：运行中回到 terminal，调试中回到 Debug Console；未运行节点点击只选中节点，不再直接打开文件。
+- 运行或调试中的 runnable 节点单击后聚焦对应结果视图：运行中回到 terminal，调试中回到 Debug Console；双击 runnable 节点执行 Go to File。
 - runnable 节点不再展示 `package main` 或 `package unknown` 这类 description，package 信息只保留在 tooltip 中。
-- 点击 debug 按钮启动调试时不主动切换到 VSCode Debug 侧边栏或 Debug Console，保持用户当前工作区焦点。
+- 点击 debug 按钮启动调试时聚焦 Debug Console 并尽力选中对应 debug session，但不切换到 VSCode 原生 Run and Debug 侧边栏。
 - 调试运行中显示 Pause 按钮，并展示禁用态 Step Over、Step Into、Step Out；调试暂停时显示 Continue、Step Over、Step Into、Step Out 按钮，并保留 stop/restart。
 - 点击 Continue 后 runnable 节点会立即回到调试运行状态，并短暂忽略 VSCode 旧 active stack 事件，避免按钮重新跳回暂停态。
 - 调试控制按钮委托 VSCode 原生 debug 命令执行，避免直接发送 DAP step/pause 请求时和 Go debug adapter 的线程上下文不一致。
@@ -19,7 +19,7 @@
 
 ## 已知边界
 
-- VSCode 扩展 API 可以聚焦 Debug Console，但不能稳定地直接设置某个 debug session 为 active；多 debug session 同时存在时，Debug Console 的具体标签选择仍遵循 VSCode 当前 active debug session。
+- VSCode 扩展 API 可以聚焦 Debug Console，但没有稳定公开的 Debug Console label 选择能力；Go Bench 会尽力把 active debug session 指向对应 runnable，多 debug session 同时存在时具体标签选择仍可能受 VSCode 当前状态影响。
 - 暂停堆栈来自 debug adapter 的 `stackTrace` 响应；如果 adapter 没有返回 source path，则该栈帧只展示名称，不提供源码跳转。
 
 ## 关键文件

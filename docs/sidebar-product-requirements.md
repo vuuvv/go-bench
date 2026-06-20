@@ -667,13 +667,14 @@ CodeLens 行为要求：
 
 - 修复 runnable debug 启动、终止和视图状态同步。
 - runnable 运行或调试中点击项目时聚焦对应结果视图：运行中回到 terminal，调试中回到 Debug Console；普通项目点击只选中节点，打开源码改由 Go to File inline action 执行。
-- 点击 debug 按钮启动调试时不主动切换到 VSCode Debug 侧边栏或 Debug Console，保持用户当前工作区焦点。
+- 双击 runnable 节点时执行 Go to File；单击运行或调试中的节点只聚焦对应结果视图。
+- 点击 debug 按钮启动调试时聚焦 Debug Console 并尽力选中对应 debug session，但不切换到 VSCode 原生 Run and Debug 侧边栏。
 - runnable 节点名称旁不展示 `package main` 或 `package unknown` 这类 description，package 信息只保留在 tooltip 中。
 - 保留标准 debug inline 按钮：未运行项目显示 run/debug，运行或调试中显示 stop/restart。
 - 调试运行中显示 Pause，并展示禁用态 Step Over、Step Into、Step Out；调试暂停或触发断点后显示 Continue，并恢复 Step Over、Step Into、Step Out 可用，同时保留 stop/restart。
 - 点击 Continue 后 runnable 节点应立即回到调试运行状态，显示 Pause 和禁用态 Step 按钮；旧的 active stack 事件不能把节点重新刷回暂停态。
 - 调试暂停时在 runnable 下展示当前 debug adapter 返回的调用栈帧，点击栈帧跳转到源码位置。
-- 点击调试中 runnable 时聚焦 Debug Console；VSCode 扩展 API 不提供直接设置 active debug session 的稳定能力，因此多 debug session 下以 VSCode 当前 active debug session 的控制台标签为准。
+- 点击调试中 runnable 或启动 runnable 调试时聚焦 Debug Console，并尽力选中对应 debug session；不得切换到 VSCode 原生 Run and Debug 侧边栏。VSCode 扩展 API 不提供稳定公开的 Debug Console label 选择能力，因此多 debug session 下该选择为 best-effort。
 - group 节点补充批量 debug、批量 stop、批量 restart 和批量删除项目入口。
 - 停止 debug runnable 时同时停止 debug session，并尽力关闭 Debug Console 面板。
 
