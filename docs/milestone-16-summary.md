@@ -5,7 +5,8 @@
 - runnable debug 启动后立即进入 `debugging` 状态，并通过 VSCode `onDidStartDebugSession` / `onDidTerminateDebugSession` 事件补齐 session 映射和终止同步。
 - 运行或调试中的 runnable 节点点击后聚焦对应结果视图：运行中回到 terminal，调试中回到 Debug Console；未运行节点点击只选中节点，不再直接打开文件。
 - runnable 节点不再展示 `package main` 或 `package unknown` 这类 description，package 信息只保留在 tooltip 中。
-- 调试运行中显示 Pause 按钮；调试暂停时显示 Continue、Step Over、Step Into、Step Out 按钮，并保留 stop/restart。
+- 点击 debug 按钮启动调试时不主动切换到 VSCode Debug 侧边栏或 Debug Console，保持用户当前工作区焦点。
+- 调试运行中显示 Pause 按钮，并展示禁用态 Step Over、Step Into、Step Out；调试暂停时显示 Continue、Step Over、Step Into、Step Out 按钮，并保留 stop/restart。
 - 调试控制按钮委托 VSCode 原生 debug 命令执行，避免直接发送 DAP step/pause 请求时和 Go debug adapter 的线程上下文不一致。
 - 调试暂停时读取 debug adapter 的 `stackTrace`，在 runnable 下展示当前调用栈帧，点击栈帧跳转到源码位置。
 - 打开源码保留为 runnable 的 `Go to File` inline action。

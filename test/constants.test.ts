@@ -68,6 +68,9 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.stepOverRunnableDebug, 'goBench.runnables.debug.stepOver');
     assert.equal(commands.stepIntoRunnableDebug, 'goBench.runnables.debug.stepInto');
     assert.equal(commands.stepOutRunnableDebug, 'goBench.runnables.debug.stepOut');
+    assert.equal(commands.disabledStepOverRunnableDebug, 'goBench.runnables.debug.stepOver.disabled');
+    assert.equal(commands.disabledStepIntoRunnableDebug, 'goBench.runnables.debug.stepInto.disabled');
+    assert.equal(commands.disabledStepOutRunnableDebug, 'goBench.runnables.debug.stepOut.disabled');
     assert.equal(commands.revealRunnable, 'goBench.runnables.reveal');
     assert.equal(commands.openRunnableStackFrame, 'goBench.runnables.openStackFrame');
     assert.equal(commands.focusRunnableDebugConsole, 'goBench.runnables.focusDebugConsole');

@@ -277,6 +277,24 @@
         "icon": "$(debug-step-out)"
       },
       {
+        "command": "goBench.runnables.debug.stepOver.disabled",
+        "title": "Step Over",
+        "icon": "$(debug-step-over)",
+        "enablement": "false"
+      },
+      {
+        "command": "goBench.runnables.debug.stepInto.disabled",
+        "title": "Step Into",
+        "icon": "$(debug-step-into)",
+        "enablement": "false"
+      },
+      {
+        "command": "goBench.runnables.debug.stepOut.disabled",
+        "title": "Step Out",
+        "icon": "$(debug-step-out)",
+        "enablement": "false"
+      },
+      {
         "command": "goBench.runnables.reveal",
         "title": "Go to File",
         "icon": "$(go-to-file)"
@@ -494,6 +512,21 @@
           "command": "goBench.runnables.debug.pause",
           "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableDebugging",
           "group": "inline@4"
+        },
+        {
+          "command": "goBench.runnables.debug.stepOver.disabled",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableDebugging",
+          "group": "inline@5"
+        },
+        {
+          "command": "goBench.runnables.debug.stepInto.disabled",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableDebugging",
+          "group": "inline@6"
+        },
+        {
+          "command": "goBench.runnables.debug.stepOut.disabled",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableDebugging",
+          "group": "inline@7"
         },
         {
           "command": "goBench.runnables.debug.continue",

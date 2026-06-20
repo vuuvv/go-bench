@@ -1070,7 +1070,6 @@ async function debugRunnable(
 
     options.provider.setRuntimeState(item.id, 'debugging');
     options.provider.setDebugState(item.id, 'running');
-    await focusDebugConsole();
   } catch (error) {
     options.pendingDebugSessionItems.delete(configuration.name);
     options.provider.clearRuntimeState(item.id);
@@ -1093,7 +1092,6 @@ async function runDebugControl(
     return;
   }
 
-  await focusDebugConsole();
   await executeDebugControlCommand(item, options, action);
 }
 

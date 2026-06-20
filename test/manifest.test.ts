@@ -20,7 +20,7 @@ type ExtensionManifest = {
   icon?: string;
   activationEvents: string[];
   contributes: {
-    commands: Array<{ command: string; title: string; icon?: string }>;
+    commands: Array<{ command: string; title: string; icon?: string; enablement?: string }>;
     viewsContainers?: {
       activitybar?: Array<{ id: string; title: string; icon: string }>;
     };
@@ -300,6 +300,24 @@ describe('VSCode extension manifest', () => {
         icon: '$(debug-step-out)'
       },
       {
+        command: commands.disabledStepOverRunnableDebug,
+        title: 'Step Over',
+        icon: '$(debug-step-over)',
+        enablement: 'false'
+      },
+      {
+        command: commands.disabledStepIntoRunnableDebug,
+        title: 'Step Into',
+        icon: '$(debug-step-into)',
+        enablement: 'false'
+      },
+      {
+        command: commands.disabledStepOutRunnableDebug,
+        title: 'Step Out',
+        icon: '$(debug-step-out)',
+        enablement: 'false'
+      },
+      {
         command: commands.revealRunnable,
         title: 'Go to File',
         icon: '$(go-to-file)'
@@ -562,6 +580,21 @@ describe('VSCode extension manifest', () => {
         command: commands.pauseRunnableDebug,
         when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableDebugging`,
         group: 'inline@4'
+      },
+      {
+        command: commands.disabledStepOverRunnableDebug,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableDebugging`,
+        group: 'inline@5'
+      },
+      {
+        command: commands.disabledStepIntoRunnableDebug,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableDebugging`,
+        group: 'inline@6'
+      },
+      {
+        command: commands.disabledStepOutRunnableDebug,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableDebugging`,
+        group: 'inline@7'
       },
       {
         command: commands.continueRunnableDebug,

@@ -105,6 +105,12 @@ export const commands = {
   stepIntoRunnableDebug: 'goBench.runnables.debug.stepInto',
   /** 对 Go Bench runnable 对应的调试会话执行单步跳出。 */
   stepOutRunnableDebug: 'goBench.runnables.debug.stepOut',
+  /** 调试运行中展示但禁用的逐过程按钮。 */
+  disabledStepOverRunnableDebug: 'goBench.runnables.debug.stepOver.disabled',
+  /** 调试运行中展示但禁用的单步调试按钮。 */
+  disabledStepIntoRunnableDebug: 'goBench.runnables.debug.stepInto.disabled',
+  /** 调试运行中展示但禁用的单步跳出按钮。 */
+  disabledStepOutRunnableDebug: 'goBench.runnables.debug.stepOut.disabled',
   /** 打开 Go Bench runnable 对应的文件或目录。 */
   revealRunnable: 'goBench.runnables.reveal',
   /** 打开 Go Bench runnable 暂停时的调用栈帧。 */
