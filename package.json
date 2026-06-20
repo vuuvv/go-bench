@@ -252,8 +252,38 @@
         "icon": "$(debug-alt)"
       },
       {
+        "command": "goBench.runnables.debug.pause",
+        "title": "Pause",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "goBench.runnables.debug.continue",
+        "title": "Continue",
+        "icon": "$(debug-continue)"
+      },
+      {
+        "command": "goBench.runnables.debug.stepOver",
+        "title": "Step Over",
+        "icon": "$(debug-step-over)"
+      },
+      {
+        "command": "goBench.runnables.debug.stepInto",
+        "title": "Step Into",
+        "icon": "$(debug-step-into)"
+      },
+      {
+        "command": "goBench.runnables.debug.stepOut",
+        "title": "Step Out",
+        "icon": "$(debug-step-out)"
+      },
+      {
         "command": "goBench.runnables.reveal",
         "title": "Go to File",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "goBench.runnables.openStackFrame",
+        "title": "Open Stack Frame",
         "icon": "$(go-to-file)"
       },
       {
@@ -452,23 +482,48 @@
         },
         {
           "command": "goBench.runnables.stop",
-          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
           "group": "inline@2"
         },
         {
           "command": "goBench.runnables.restart",
-          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
           "group": "inline@3"
         },
         {
-          "command": "goBench.runnables.reveal",
-          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
+          "command": "goBench.runnables.debug.pause",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableDebugging",
           "group": "inline@4"
         },
         {
-          "command": "goBench.runnables.remove",
-          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
+          "command": "goBench.runnables.debug.continue",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableDebugPaused",
+          "group": "inline@4"
+        },
+        {
+          "command": "goBench.runnables.debug.stepOver",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableDebugPaused",
           "group": "inline@5"
+        },
+        {
+          "command": "goBench.runnables.debug.stepInto",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableDebugPaused",
+          "group": "inline@6"
+        },
+        {
+          "command": "goBench.runnables.debug.stepOut",
+          "when": "view == goBench.sidebar.runAndDebug && viewItem == goBenchRunnableDebugPaused",
+          "group": "inline@7"
+        },
+        {
+          "command": "goBench.runnables.reveal",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
+          "group": "inline@8"
+        },
+        {
+          "command": "goBench.runnables.remove",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
+          "group": "inline@9"
         },
         {
           "command": "goBench.runnables.runGroup",
@@ -497,22 +552,22 @@
         },
         {
           "command": "goBench.runnables.edit",
-          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
           "group": "navigation@0"
         },
         {
           "command": "goBench.runnables.moveToGroup",
-          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
           "group": "navigation@1"
         },
         {
           "command": "goBench.runnables.remove",
-          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
           "group": "navigation@2"
         },
         {
           "command": "goBench.runnables.copyPath",
-          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
           "group": "navigation@3"
         },
         {

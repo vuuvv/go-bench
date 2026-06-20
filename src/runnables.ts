@@ -46,6 +46,10 @@ type RunnableTreeNode =
   | {
       kind: 'runnable';
       item: GoBenchRunnableItem;
+    }
+  | {
+      kind: 'stackFrame';
+      frame: RunnableDebugStackFrame;
     };
 
 type RunnableRuntimeOptions = {
@@ -58,6 +62,37 @@ type RunnableRuntimeOptions = {
 
 type RunnableRuntimeState = 'stopped' | 'running' | 'debugging';
 
+type RunnableDebugState = 'running' | 'paused';
+
+type RunnableDebugStackFrame = {
+  itemId: string;
+  id: number;
+  threadId: number;
+  label: string;
+  detail?: string;
+  sourcePath?: string;
+  line?: number;
+  column?: number;
+};
+
+type DapStackTraceResponse = {
+  stackFrames?: Array<{
+    id: number;
+    name: string;
+    source?: {
+      path?: string;
+    };
+    line?: number;
+    column?: number;
+  }>;
+};
+
+type DapThreadsResponse = {
+  threads?: Array<{ id: number; name: string }>;
+};
+
+type RunnableDebugControlAction = 'pause' | 'continue' | 'stepOver' | 'stepInto' | 'stepOut';
+
 const runnableDragMimeType = 'application/vnd.code.tree.goBench.sidebar.runAndDebug';
 
 /** Run and Debug 视图的数据提供器，直接从 workspace settings 读取最新 runnable 列表。 */
@@ -65,6 +100,8 @@ export class GoBenchRunnablesProvider
   implements vscode.TreeDataProvider<RunnableTreeNode>, vscode.Disposable {
   private readonly treeDataDidChangeEmitter = new vscode.EventEmitter<RunnableTreeNode | undefined | null | void>();
   private readonly runtimeStates = new Map<string, Exclude<RunnableRuntimeState, 'stopped'>>();
+  private readonly debugStates = new Map<string, RunnableDebugState>();
+  private readonly debugStackFrames = new Map<string, RunnableDebugStackFrame[]>();
 
   public readonly onDidChangeTreeData = this.treeDataDidChangeEmitter.event;
 
@@ -78,9 +115,42 @@ export class GoBenchRunnablesProvider
     this.refresh();
   }
 
+  /** 记录 debug adapter 暂停/继续状态，用于切换标准调试按钮和堆栈子节点。 */
+  public setDebugState(id: string, state: RunnableDebugState): void {
+    this.debugStates.set(id, state);
+    this.refresh();
+  }
+
+  /** 查询调试暂停状态；没有记录时按继续运行处理。 */
+  public getDebugState(id: string): RunnableDebugState {
+    return this.debugStates.get(id) ?? 'running';
+  }
+
+  /** 保存当前 debug adapter 返回的调用栈帧，作为 runnable 的子节点展示。 */
+  public setDebugStackFrames(id: string, frames: RunnableDebugStackFrame[]): void {
+    if (frames.length === 0) {
+      this.debugStackFrames.delete(id);
+    } else {
+      this.debugStackFrames.set(id, frames);
+    }
+    this.refresh();
+  }
+
+  /** 清除指定 runnable 的暂停堆栈。 */
+  public clearDebugStackFrames(id: string): void {
+    this.debugStackFrames.delete(id);
+    this.refresh();
+  }
+
+  public getDebugStackFrames(id: string): RunnableDebugStackFrame[] {
+    return this.debugStackFrames.get(id) ?? [];
+  }
+
   /** 清除运行态，回到未运行按钮集合。 */
   public clearRuntimeState(id: string): void {
     this.runtimeStates.delete(id);
+    this.debugStates.delete(id);
+    this.debugStackFrames.delete(id);
     this.refresh();
   }
 
@@ -113,10 +183,32 @@ export class GoBenchRunnablesProvider
       return item;
     }
 
-    const treeItem = new vscode.TreeItem(node.item.label, vscode.TreeItemCollapsibleState.None);
+    if (node.kind === 'stackFrame') {
+      const item = new vscode.TreeItem(node.frame.label, vscode.TreeItemCollapsibleState.None);
+      item.description = node.frame.detail;
+      item.tooltip = [node.frame.label, node.frame.sourcePath, node.frame.line ? `line ${node.frame.line}` : undefined]
+        .filter(Boolean)
+        .join('\n');
+      item.iconPath = new vscode.ThemeIcon('callstack-view-session');
+      item.contextValue = 'goBenchRunnableStackFrame';
+      if (node.frame.sourcePath && node.frame.line) {
+        item.command = {
+          command: commands.openRunnableStackFrame,
+          title: 'Open Stack Frame',
+          arguments: [node.frame]
+        };
+      }
+      return item;
+    }
+
+    const debugFrames = this.getDebugStackFrames(node.item.id);
+    const collapsibleState = debugFrames.length > 0
+      ? vscode.TreeItemCollapsibleState.Expanded
+      : vscode.TreeItemCollapsibleState.None;
+    const treeItem = new vscode.TreeItem(node.item.label, collapsibleState);
     const runtimeState = this.getRuntimeState(node.item.id);
     treeItem.tooltip = `${node.item.label}\n${node.item.uri}\npackage: ${node.item.packageName ?? 'unknown'}\nworkspace: ${node.item.workspaceFolder}`;
-    treeItem.contextValue = formatRunnableContextValue(runtimeState);
+    treeItem.contextValue = formatRunnableContextValue(runtimeState, this.getDebugState(node.item.id));
     treeItem.iconPath = getRunnableIcon(node.item, runtimeState);
     if (runtimeState !== 'stopped') {
       treeItem.command = {
@@ -132,6 +224,12 @@ export class GoBenchRunnablesProvider
     if (node?.kind === 'group') {
       return node.items.map(item => ({ kind: 'runnable', item }));
     }
+    if (node?.kind === 'runnable') {
+      return this.getDebugStackFrames(node.item.id).map(frame => ({ kind: 'stackFrame', frame }));
+    }
+    if (node?.kind === 'stackFrame') {
+      return [];
+    }
     if (node) {
       return [];
     }
@@ -146,6 +244,8 @@ export class GoBenchRunnablesProvider
 
   public dispose(): void {
     this.runtimeStates.clear();
+    this.debugStates.clear();
+    this.debugStackFrames.clear();
     this.treeDataDidChangeEmitter.dispose();
   }
 }
@@ -229,6 +329,42 @@ export function registerGoBenchRunnables(options: {
       }
     }
   });
+  const debugSessionCustomEventSubscription = vscode.debug.onDidReceiveDebugSessionCustomEvent(event => {
+    const itemId = findRunnableIdByDebugSession(event.session, debugSessions);
+    if (!itemId) {
+      return;
+    }
+
+    if (event.event === 'stopped') {
+      options.provider.setDebugState(itemId, 'paused');
+      void refreshDebugStackFrames(itemId, event.session, event.body);
+      return;
+    }
+
+    if (event.event === 'continued') {
+      options.provider.setDebugState(itemId, 'running');
+      options.provider.clearDebugStackFrames(itemId);
+    }
+  });
+  const activeStackItemSubscription = vscode.debug.onDidChangeActiveStackItem(stackItem => {
+    const session = resolveStackItemSession(stackItem);
+    const itemId = session ? findRunnableIdByDebugSession(session, debugSessions) : undefined;
+    if (!session || !itemId) {
+      return;
+    }
+    options.provider.setDebugState(itemId, 'paused');
+    void refreshDebugStackFrames(itemId, session, stackItem);
+  });
+
+  async function refreshDebugStackFrames(itemId: string, session: vscode.DebugSession, source: unknown): Promise<void> {
+    const threadId = resolveDebugThreadId(source);
+    if (threadId === undefined) {
+      return;
+    }
+
+    const frames = await readDebugStackFrames(itemId, session, threadId, options.output);
+    options.provider.setDebugStackFrames(itemId, frames);
+  }
 
   const addCurrentFileCommand = vscode.commands.registerCommand(commands.addCurrentRunnableFile, async () => {
     const uri = vscode.window.activeTextEditor?.document.uri;
@@ -381,12 +517,53 @@ export function registerGoBenchRunnables(options: {
     }
     await debugRunnable(item, runtimeOptions);
   });
+  const pauseDebugCommand = vscode.commands.registerCommand(commands.pauseRunnableDebug, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
+    const item = normalizeRunnableCommandArgument(itemOrNode);
+    if (!item) {
+      return;
+    }
+    await runDebugControl(item, runtimeOptions, 'pause');
+  });
+  const continueDebugCommand = vscode.commands.registerCommand(commands.continueRunnableDebug, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
+    const item = normalizeRunnableCommandArgument(itemOrNode);
+    if (!item) {
+      return;
+    }
+    await runDebugControl(item, runtimeOptions, 'continue');
+  });
+  const stepOverDebugCommand = vscode.commands.registerCommand(commands.stepOverRunnableDebug, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
+    const item = normalizeRunnableCommandArgument(itemOrNode);
+    if (!item) {
+      return;
+    }
+    await runDebugControl(item, runtimeOptions, 'stepOver');
+  });
+  const stepIntoDebugCommand = vscode.commands.registerCommand(commands.stepIntoRunnableDebug, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
+    const item = normalizeRunnableCommandArgument(itemOrNode);
+    if (!item) {
+      return;
+    }
+    await runDebugControl(item, runtimeOptions, 'stepInto');
+  });
+  const stepOutDebugCommand = vscode.commands.registerCommand(commands.stepOutRunnableDebug, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
+    const item = normalizeRunnableCommandArgument(itemOrNode);
+    if (!item) {
+      return;
+    }
+    await runDebugControl(item, runtimeOptions, 'stepOut');
+  });
   const revealCommand = vscode.commands.registerCommand(commands.revealRunnable, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
     const item = normalizeRunnableCommandArgument(itemOrNode);
     if (!item) {
       return;
     }
     await revealRunnable(item);
+  });
+  const openStackFrameCommand = vscode.commands.registerCommand(commands.openRunnableStackFrame, async (frame?: RunnableDebugStackFrame) => {
+    if (!frame) {
+      return;
+    }
+    await openStackFrame(frame);
   });
   const focusDebugConsoleCommand = vscode.commands.registerCommand(commands.focusRunnableDebugConsole, async () => {
     await focusDebugConsole();
@@ -412,6 +589,8 @@ export function registerGoBenchRunnables(options: {
     terminalCloseSubscription,
     debugSessionStartSubscription,
     debugSessionTerminateSubscription,
+    debugSessionCustomEventSubscription,
+    activeStackItemSubscription,
     addCurrentFileCommand,
     addFileCommand,
     addPackageCommand,
@@ -430,7 +609,13 @@ export function registerGoBenchRunnables(options: {
     stopCommand,
     restartCommand,
     debugCommand,
+    pauseDebugCommand,
+    continueDebugCommand,
+    stepOverDebugCommand,
+    stepIntoDebugCommand,
+    stepOutDebugCommand,
     revealCommand,
+    openStackFrameCommand,
     focusDebugConsoleCommand,
     focusResultCommand,
     copyPathCommand,
@@ -888,6 +1073,7 @@ async function debugRunnable(
     }
 
     options.provider.setRuntimeState(item.id, 'debugging');
+    options.provider.setDebugState(item.id, 'running');
     await focusDebugConsole();
   } catch (error) {
     options.pendingDebugSessionItems.delete(configuration.name);
@@ -895,6 +1081,24 @@ async function debugRunnable(
     options.output.appendLine(`Go Bench runnable debug failed: ${String(error)}`);
     void vscode.window.showErrorMessage(`Go Bench: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+async function runDebugControl(
+  item: GoBenchRunnableItem,
+  options: RunnableRuntimeOptions,
+  action: RunnableDebugControlAction
+): Promise<void> {
+  if (options.provider.getRuntimeState(item.id) !== 'debugging') {
+    return;
+  }
+
+  const session = options.debugSessions.get(item.id);
+  if (!session) {
+    return;
+  }
+
+  await focusDebugConsole();
+  await executeDebugControlRequest(item, session, options, action);
 }
 
 async function focusDebugConsole(): Promise<void> {
@@ -927,8 +1131,140 @@ async function focusRunnableResult(item: GoBenchRunnableItem, options: RunnableR
   }
 
   if (runtimeState === 'debugging') {
+    const session = options.debugSessions.get(item.id);
+    if (session) {
+      await refreshActiveDebugStackFrames(item.id, session, options.provider, options.output);
+    }
     await focusDebugConsole();
   }
+}
+
+async function refreshActiveDebugStackFrames(
+  itemId: string,
+  session: vscode.DebugSession,
+  provider: GoBenchRunnablesProvider,
+  output: vscode.OutputChannel
+): Promise<void> {
+  const threadId = resolveDebugThreadId(vscode.debug.activeStackItem);
+  if (threadId === undefined || resolveStackItemSession(vscode.debug.activeStackItem) !== session) {
+    return;
+  }
+
+  provider.setDebugState(itemId, 'paused');
+  provider.setDebugStackFrames(itemId, await readDebugStackFrames(itemId, session, threadId, output));
+}
+
+async function readDebugStackFrames(
+  itemId: string,
+  session: vscode.DebugSession,
+  threadId: number,
+  output: vscode.OutputChannel
+): Promise<RunnableDebugStackFrame[]> {
+  try {
+    const response = await session.customRequest('stackTrace', { threadId, startFrame: 0, levels: 20 }) as DapStackTraceResponse;
+    return (response.stackFrames ?? []).map(frame => ({
+      itemId,
+      id: frame.id,
+      threadId,
+      label: frame.name,
+      detail: formatStackFrameDetail(frame.source?.path, frame.line),
+      sourcePath: frame.source?.path,
+      line: frame.line,
+      column: frame.column
+    }));
+  } catch (error) {
+    output.appendLine(`Go Bench: failed to read debug stack frames: ${String(error)}`);
+    return [];
+  }
+}
+
+async function executeDebugControlRequest(
+  item: GoBenchRunnableItem,
+  session: vscode.DebugSession,
+  options: RunnableRuntimeOptions,
+  action: RunnableDebugControlAction
+): Promise<void> {
+  try {
+    if (action === 'pause') {
+      for (const threadId of await readDebugThreadIds(session)) {
+        await session.customRequest('pause', { threadId });
+      }
+      return;
+    }
+
+    const threadId = resolveRunnableDebugControlThreadId(item.id, options.provider, session);
+    if (threadId === undefined) {
+      await vscode.window.showInformationMessage('Go Bench: no paused debug stack is active for this runnable.');
+      return;
+    }
+
+    await session.customRequest(formatDebugControlRequest(action), { threadId });
+    if (action === 'continue') {
+      options.provider.setDebugState(item.id, 'running');
+      options.provider.clearDebugStackFrames(item.id);
+    }
+  } catch (error) {
+    options.output.appendLine(`Go Bench: debug control "${action}" failed: ${String(error)}`);
+    void vscode.window.showErrorMessage(`Go Bench: failed to ${formatDebugControlTitle(action)} debug session.`);
+  }
+}
+
+async function readDebugThreadIds(session: vscode.DebugSession): Promise<number[]> {
+  const response = await session.customRequest('threads') as DapThreadsResponse;
+  return (response.threads ?? []).map(thread => thread.id);
+}
+
+function resolveRunnableDebugControlThreadId(
+  itemId: string,
+  provider: GoBenchRunnablesProvider,
+  session: vscode.DebugSession
+): number | undefined {
+  const activeStackItem = vscode.debug.activeStackItem;
+  if (resolveStackItemSession(activeStackItem) === session) {
+    return resolveDebugThreadId(activeStackItem);
+  }
+  return provider.getDebugStackFrames(itemId)[0]?.threadId;
+}
+
+function formatDebugControlRequest(action: Exclude<RunnableDebugControlAction, 'pause'>): string {
+  if (action === 'stepOver') {
+    return 'next';
+  }
+  if (action === 'stepInto') {
+    return 'stepIn';
+  }
+  if (action === 'stepOut') {
+    return 'stepOut';
+  }
+  return 'continue';
+}
+
+function formatDebugControlTitle(action: RunnableDebugControlAction): string {
+  if (action === 'stepOver') {
+    return 'step over';
+  }
+  if (action === 'stepInto') {
+    return 'step into';
+  }
+  if (action === 'stepOut') {
+    return 'step out';
+  }
+  return action;
+}
+
+async function openStackFrame(frame: RunnableDebugStackFrame): Promise<void> {
+  if (!frame.sourcePath || !frame.line) {
+    return;
+  }
+
+  const line = Math.max(frame.line - 1, 0);
+  const column = Math.max((frame.column ?? 1) - 1, 0);
+  const position = new vscode.Position(line, column);
+  const document = await vscode.workspace.openTextDocument(vscode.Uri.file(frame.sourcePath));
+  await vscode.window.showTextDocument(document, {
+    preview: false,
+    selection: new vscode.Range(position, position)
+  });
 }
 
 async function revealRunnable(item: GoBenchRunnableItem): Promise<void> {
@@ -1100,12 +1436,12 @@ function rootToTreeNode(root: GoBenchRunnableTreeRoot): RunnableTreeNode {
   };
 }
 
-function formatRunnableContextValue(state: RunnableRuntimeState): string {
+function formatRunnableContextValue(state: RunnableRuntimeState, debugState: RunnableDebugState): string {
   if (state === 'running') {
     return 'goBenchRunnableRunning';
   }
   if (state === 'debugging') {
-    return 'goBenchRunnableDebugging';
+    return debugState === 'paused' ? 'goBenchRunnableDebugPaused' : 'goBenchRunnableDebugging';
   }
   return 'goBenchRunnableStopped';
 }
@@ -1137,6 +1473,50 @@ function resolveDropGroupId(target: RunnableTreeNode | undefined): string | unde
     return target.item.groupId;
   }
   return undefined;
+}
+
+function findRunnableIdByDebugSession(
+  session: vscode.DebugSession,
+  debugSessions: ReadonlyMap<string, vscode.DebugSession>
+): string | undefined {
+  for (const [id, debugSession] of debugSessions) {
+    if (debugSession === session) {
+      return id;
+    }
+  }
+  return undefined;
+}
+
+function resolveStackItemSession(stackItem: unknown): vscode.DebugSession | undefined {
+  if (stackItem && typeof stackItem === 'object' && 'session' in stackItem) {
+    const session = (stackItem as { session?: unknown }).session;
+    return isDebugSession(session) ? session : undefined;
+  }
+  return undefined;
+}
+
+function resolveDebugThreadId(source: unknown): number | undefined {
+  if (!source || typeof source !== 'object') {
+    return undefined;
+  }
+  const body = 'threadId' in source ? source : 'body' in source ? (source as { body?: unknown }).body : undefined;
+  if (!body || typeof body !== 'object' || !('threadId' in body)) {
+    return undefined;
+  }
+  const threadId = (body as { threadId?: unknown }).threadId;
+  return typeof threadId === 'number' ? threadId : undefined;
+}
+
+function isDebugSession(value: unknown): value is vscode.DebugSession {
+  return Boolean(value && typeof value === 'object' && 'customRequest' in value);
+}
+
+function formatStackFrameDetail(sourcePath: string | undefined, line: number | undefined): string | undefined {
+  if (!sourcePath) {
+    return line ? `line ${line}` : undefined;
+  }
+  const relativePath = vscode.workspace.asRelativePath(sourcePath, false);
+  return line ? `${relativePath}:${line}` : relativePath;
 }
 
 function normalizeRunnableCommandArgument(arg: GoBenchRunnableItem | RunnableTreeNode | undefined): GoBenchRunnableItem | undefined {

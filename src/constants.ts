@@ -95,8 +95,20 @@ export const commands = {
   restartRunnable: 'goBench.runnables.restart',
   /** 使用官方 Go debug adapter 调试 Go Bench runnable。 */
   debugRunnable: 'goBench.runnables.debug',
+  /** 暂停 Go Bench runnable 对应的调试会话。 */
+  pauseRunnableDebug: 'goBench.runnables.debug.pause',
+  /** 继续 Go Bench runnable 对应的调试会话。 */
+  continueRunnableDebug: 'goBench.runnables.debug.continue',
+  /** 对 Go Bench runnable 对应的调试会话执行逐过程。 */
+  stepOverRunnableDebug: 'goBench.runnables.debug.stepOver',
+  /** 对 Go Bench runnable 对应的调试会话执行单步调试。 */
+  stepIntoRunnableDebug: 'goBench.runnables.debug.stepInto',
+  /** 对 Go Bench runnable 对应的调试会话执行单步跳出。 */
+  stepOutRunnableDebug: 'goBench.runnables.debug.stepOut',
   /** 打开 Go Bench runnable 对应的文件或目录。 */
   revealRunnable: 'goBench.runnables.reveal',
+  /** 打开 Go Bench runnable 暂停时的调用栈帧。 */
+  openRunnableStackFrame: 'goBench.runnables.openStackFrame',
   /** 聚焦 Go Bench runnable 对应的 Debug Console。 */
   focusRunnableDebugConsole: 'goBench.runnables.focusDebugConsole',
   /** 聚焦 Go Bench runnable 当前运行或调试结果视图。 */

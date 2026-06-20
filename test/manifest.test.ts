@@ -275,8 +275,38 @@ describe('VSCode extension manifest', () => {
         icon: '$(debug-alt)'
       },
       {
+        command: commands.pauseRunnableDebug,
+        title: 'Pause',
+        icon: '$(debug-pause)'
+      },
+      {
+        command: commands.continueRunnableDebug,
+        title: 'Continue',
+        icon: '$(debug-continue)'
+      },
+      {
+        command: commands.stepOverRunnableDebug,
+        title: 'Step Over',
+        icon: '$(debug-step-over)'
+      },
+      {
+        command: commands.stepIntoRunnableDebug,
+        title: 'Step Into',
+        icon: '$(debug-step-into)'
+      },
+      {
+        command: commands.stepOutRunnableDebug,
+        title: 'Step Out',
+        icon: '$(debug-step-out)'
+      },
+      {
         command: commands.revealRunnable,
         title: 'Go to File',
+        icon: '$(go-to-file)'
+      },
+      {
+        command: commands.openRunnableStackFrame,
+        title: 'Open Stack Frame',
         icon: '$(go-to-file)'
       },
       {
@@ -520,23 +550,48 @@ describe('VSCode extension manifest', () => {
       },
       {
         command: commands.stopRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)`,
         group: 'inline@2'
       },
       {
         command: commands.restartRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)`,
         group: 'inline@3'
       },
       {
-        command: commands.revealRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
+        command: commands.pauseRunnableDebug,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableDebugging`,
         group: 'inline@4'
       },
       {
-        command: commands.removeRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
+        command: commands.continueRunnableDebug,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableDebugPaused`,
+        group: 'inline@4'
+      },
+      {
+        command: commands.stepOverRunnableDebug,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableDebugPaused`,
         group: 'inline@5'
+      },
+      {
+        command: commands.stepIntoRunnableDebug,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableDebugPaused`,
+        group: 'inline@6'
+      },
+      {
+        command: commands.stepOutRunnableDebug,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableDebugPaused`,
+        group: 'inline@7'
+      },
+      {
+        command: commands.revealRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)`,
+        group: 'inline@8'
+      },
+      {
+        command: commands.removeRunnable,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)`,
+        group: 'inline@9'
       },
       {
         command: commands.runRunnableGroup,
@@ -565,22 +620,22 @@ describe('VSCode extension manifest', () => {
       },
       {
         command: commands.editRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)`,
         group: 'navigation@0'
       },
       {
         command: commands.moveRunnableToGroup,
-        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)`,
         group: 'navigation@1'
       },
       {
         command: commands.removeRunnable,
-        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)`,
         group: 'navigation@2'
       },
       {
         command: commands.copyRunnablePath,
-        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging)`,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)`,
         group: 'navigation@3'
       },
       {
