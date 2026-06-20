@@ -58,6 +58,7 @@ type RunnableRuntimeOptions = {
   runningTerminals: Map<string, vscode.Terminal>;
   debugSessions: Map<string, vscode.DebugSession>;
   pendingDebugSessionItems: Map<string, string>;
+  resumedDebugStackSuppressions: Map<string, number>;
 };
 
 type RunnableRuntimeState = 'stopped' | 'running' | 'debugging';
@@ -293,7 +294,8 @@ export function registerGoBenchRunnables(options: {
   const runningTerminals = new Map<string, vscode.Terminal>();
   const debugSessions = new Map<string, vscode.DebugSession>();
   const pendingDebugSessionItems = new Map<string, string>();
-  const runtimeOptions = { ...options, runningTerminals, debugSessions, pendingDebugSessionItems };
+  const resumedDebugStackSuppressions = new Map<string, number>();
+  const runtimeOptions = { ...options, runningTerminals, debugSessions, pendingDebugSessionItems, resumedDebugStackSuppressions };
   const configurationSubscription = vscode.workspace.onDidChangeConfiguration(event => {
     if (event.affectsConfiguration(configurationKeys.runnableItems) || event.affectsConfiguration(configurationKeys.runnableGroups)) {
       options.provider.refresh();
@@ -332,12 +334,14 @@ export function registerGoBenchRunnables(options: {
     }
 
     if (event.event === 'stopped') {
+      resumedDebugStackSuppressions.delete(itemId);
       options.provider.setDebugState(itemId, 'paused');
       void refreshDebugStackFrames(itemId, event.session, event.body);
       return;
     }
 
     if (event.event === 'continued') {
+      resumedDebugStackSuppressions.set(itemId, Date.now() + 1_500);
       options.provider.setDebugState(itemId, 'running');
       options.provider.clearDebugStackFrames(itemId);
     }
@@ -346,6 +350,9 @@ export function registerGoBenchRunnables(options: {
     const session = resolveStackItemSession(stackItem);
     const itemId = session ? findRunnableIdByDebugSession(session, debugSessions) : undefined;
     if (!session || !itemId) {
+      return;
+    }
+    if (Date.now() < (resumedDebugStackSuppressions.get(itemId) ?? 0)) {
       return;
     }
     options.provider.setDebugState(itemId, 'paused');
@@ -619,6 +626,7 @@ export function registerGoBenchRunnables(options: {
       runningTerminals.clear();
       debugSessions.clear();
       pendingDebugSessionItems.clear();
+      resumedDebugStackSuppressions.clear();
     })
   );
 }
@@ -1061,7 +1069,9 @@ async function debugRunnable(
   try {
     const vscodeWorkspaceFolder = vscode.workspace.workspaceFolders?.find(folder => folder.name === item.workspaceFolder);
     options.pendingDebugSessionItems.set(configuration.name, item.id);
-    const started = await vscode.debug.startDebugging(vscodeWorkspaceFolder, configuration);
+    const started = await vscode.debug.startDebugging(vscodeWorkspaceFolder, configuration, {
+      suppressDebugView: true
+    });
     if (!started) {
       options.pendingDebugSessionItems.delete(configuration.name);
       void vscode.window.showErrorMessage('Go Bench: failed to start runnable debugging. Check the Go extension is installed.');
@@ -1178,12 +1188,18 @@ async function executeDebugControlCommand(
   action: RunnableDebugControlAction
 ): Promise<void> {
   try {
+    if (action === 'continue') {
+      options.resumedDebugStackSuppressions.set(item.id, Date.now() + 1_500);
+    }
     await vscode.commands.executeCommand(formatDebugControlCommand(action));
     if (action === 'continue') {
       options.provider.setDebugState(item.id, 'running');
       options.provider.clearDebugStackFrames(item.id);
     }
   } catch (error) {
+    if (action === 'continue') {
+      options.resumedDebugStackSuppressions.delete(item.id);
+    }
     options.output.appendLine(`Go Bench: debug control "${action}" failed: ${String(error)}`);
     void vscode.window.showErrorMessage(
       `Go Bench: failed to ${formatDebugControlTitle(action)} debug session. ${error instanceof Error ? error.message : String(error)}`

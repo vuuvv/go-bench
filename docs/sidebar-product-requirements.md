@@ -671,6 +671,7 @@ CodeLens 行为要求：
 - runnable 节点名称旁不展示 `package main` 或 `package unknown` 这类 description，package 信息只保留在 tooltip 中。
 - 保留标准 debug inline 按钮：未运行项目显示 run/debug，运行或调试中显示 stop/restart。
 - 调试运行中显示 Pause，并展示禁用态 Step Over、Step Into、Step Out；调试暂停或触发断点后显示 Continue，并恢复 Step Over、Step Into、Step Out 可用，同时保留 stop/restart。
+- 点击 Continue 后 runnable 节点应立即回到调试运行状态，显示 Pause 和禁用态 Step 按钮；旧的 active stack 事件不能把节点重新刷回暂停态。
 - 调试暂停时在 runnable 下展示当前 debug adapter 返回的调用栈帧，点击栈帧跳转到源码位置。
 - 点击调试中 runnable 时聚焦 Debug Console；VSCode 扩展 API 不提供直接设置 active debug session 的稳定能力，因此多 debug session 下以 VSCode 当前 active debug session 的控制台标签为准。
 - group 节点补充批量 debug、批量 stop、批量 restart 和批量删除项目入口。

@@ -7,6 +7,7 @@
 - runnable 节点不再展示 `package main` 或 `package unknown` 这类 description，package 信息只保留在 tooltip 中。
 - 点击 debug 按钮启动调试时不主动切换到 VSCode Debug 侧边栏或 Debug Console，保持用户当前工作区焦点。
 - 调试运行中显示 Pause 按钮，并展示禁用态 Step Over、Step Into、Step Out；调试暂停时显示 Continue、Step Over、Step Into、Step Out 按钮，并保留 stop/restart。
+- 点击 Continue 后 runnable 节点会立即回到调试运行状态，并短暂忽略 VSCode 旧 active stack 事件，避免按钮重新跳回暂停态。
 - 调试控制按钮委托 VSCode 原生 debug 命令执行，避免直接发送 DAP step/pause 请求时和 Go debug adapter 的线程上下文不一致。
 - 调试暂停时读取 debug adapter 的 `stackTrace`，在 runnable 下展示当前调用栈帧，点击栈帧跳转到源码位置。
 - 打开源码保留为 runnable 的 `Go to File` inline action。
