@@ -678,14 +678,17 @@ CodeLens 行为要求：
 - group 节点补充批量 debug、批量 stop、批量 restart 和批量删除项目入口。
 - 停止 debug runnable 时同时停止 debug session，并尽力关闭 Debug Console 面板。
 
-### 14.6 里程碑 17：Go Bench Output Debug Console
+### 14.6 里程碑 17：Go Bench Panel Debug Console
 
-- 为 runnable debug session 创建 Go Bench 专属 Output view channel，避免依赖 VSCode 原生 Debug Console 的内部 session label 切换能力。
-- debug adapter 发出的 DAP `output` 事件必须写入对应 runnable 的 Output view，stdout、stderr、console、important 等类别保持可区分展示。
-- Output view 必须支持清空输出信息，并保留停止或终止 debug session 后的历史输出，方便继续查看本次调试结果。
-- 通过 `Evaluate in Debug Console` 命令支持 Debug Console 的 REPL evaluate 能力：用户输入表达式后通过当前 debug session 发送 `evaluate` 请求，暂停在栈帧时带上当前 frameId。
-- 点击调试中的 runnable 或启动 runnable 调试时聚焦对应的 Go Bench Debug Output view，而不是原生 Debug Console 或 terminal。
-- 补充 DAP 输出格式化和 Output channel 命名测试，里程碑文档记录实现范围、验证命令、手动验证步骤和已知边界。
+- 在 VSCode 底部 panel 中创建新的 `Go Bench` tab，并在其中放置 Go Bench 自定义 Debug Console webview。
+- 为 runnable debug session 在 Go Bench panel 内创建可切换 session tab，避免依赖 VSCode 原生 Debug Console 的内部 session label 切换能力。
+- Go Bench panel 右侧以树形结构展示 debug sessions，区分正在运行和已经结束的 session；已结束 session 按结束时间倒序排列，最多保留 100 条历史记录。
+- session 节点标题必须单行省略，并通过节点说明或 tooltip 提示运行时长、结束时间等信息。
+- debug adapter 发出的 DAP `output` 事件必须写入对应 runnable session，stdout、stderr、console、important 等类别保持可区分展示。
+- Go Bench panel 内必须支持清空当前 session 输出信息，并保留停止或终止 debug session 后的历史输出，方便继续查看本次调试结果。
+- Go Bench panel 内必须支持 Debug Console 的 REPL evaluate 能力：用户在 panel 输入表达式后通过当前 debug session 发送 `evaluate` 请求，暂停在栈帧时带上当前 frameId。
+- 点击调试中的 runnable 或启动 runnable 调试时聚焦 `Go Bench` panel tab 中对应的 debug session，而不是原生 Debug Console、Output view 或 terminal。
+- 补充 DAP 输出格式化和 debug session 标题测试，里程碑文档记录实现范围、验证命令、手动验证步骤和已知边界。
 
 ## 15. 待确认问题
 

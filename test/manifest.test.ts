@@ -10,6 +10,7 @@ import { describe, it } from 'node:test';
 import {
   commands,
   configurationKeys,
+  debugPanelViewIds,
   defaultSidebarConfig,
   defaultTableTestConfig,
   sidebarViewIds
@@ -23,6 +24,7 @@ type ExtensionManifest = {
     commands: Array<{ command: string; title: string; icon?: string; enablement?: string }>;
     viewsContainers?: {
       activitybar?: Array<{ id: string; title: string; icon: string }>;
+      panel?: Array<{ id: string; title: string; icon: string }>;
     };
     views?: Record<string, Array<{ id: string; name: string; type: string; when?: string }>>;
     menus?: {
@@ -52,7 +54,8 @@ describe('VSCode extension manifest', () => {
       'workspaceContains:**/*_test.go',
       `onView:${sidebarViewIds.files}`,
       `onView:${sidebarViewIds.tests}`,
-      `onView:${sidebarViewIds.runAndDebug}`
+      `onView:${sidebarViewIds.runAndDebug}`,
+      `onView:${debugPanelViewIds.debugConsole}`
     ]);
   });
 
@@ -342,10 +345,18 @@ describe('VSCode extension manifest', () => {
     ]);
   });
 
-  it('contributes the Go Bench Activity Bar container and milestone 12 sidebar views', () => {
+  it('contributes the Go Bench Activity Bar container, bottom panel, and sidebar views', () => {
     assert.deepEqual(manifest.contributes.viewsContainers?.activitybar, [
       {
         id: sidebarViewIds.container,
+        title: 'Go Bench',
+        icon: 'media/activitybar-icon.svg'
+      }
+    ]);
+
+    assert.deepEqual(manifest.contributes.viewsContainers?.panel, [
+      {
+        id: debugPanelViewIds.container,
         title: 'Go Bench',
         icon: 'media/activitybar-icon.svg'
       }
@@ -371,11 +382,26 @@ describe('VSCode extension manifest', () => {
         when: 'config.goBench.sidebar.enabled && config.goBench.sidebar.runnables.enabled'
       }
     ]);
+
+    assert.deepEqual(manifest.contributes.views?.[debugPanelViewIds.container], [
+      {
+        id: debugPanelViewIds.debugConsole,
+        name: 'Debug Console',
+        type: 'webview'
+      }
+    ]);
   });
 
   it('uses a VSCode-valid Activity Bar container id', () => {
     const activityBarContainers = manifest.contributes.viewsContainers?.activitybar ?? [];
     for (const container of activityBarContainers) {
+      assert.match(container.id, /^[A-Za-z0-9_-]+$/);
+    }
+  });
+
+  it('uses VSCode-valid panel container ids', () => {
+    const panelContainers = manifest.contributes.viewsContainers?.panel ?? [];
+    for (const container of panelContainers) {
       assert.match(container.id, /^[A-Za-z0-9_-]+$/);
     }
   });

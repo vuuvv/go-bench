@@ -8,7 +8,7 @@
 import { basename, dirname, extname, relative, sep } from 'node:path';
 import * as vscode from 'vscode';
 import { commands, configurationKeys } from './constants';
-import { GoBenchDebugConsole } from './debugConsole';
+import { GoBenchDebugConsole, GoBenchDebugConsolePanel } from './debugConsole';
 import type { FileExplorerNode } from './fileExplorer';
 import { resolveGoModuleInfo } from './goModule';
 import {
@@ -58,7 +58,7 @@ type RunnableRuntimeOptions = {
   output: vscode.OutputChannel;
   runningTerminals: Map<string, vscode.Terminal>;
   debugSessions: Map<string, vscode.DebugSession>;
-  debugConsoles: Map<string, GoBenchDebugConsole>;
+  debugConsoles: GoBenchDebugConsolePanel;
   pendingDebugSessionItems: Map<string, string>;
   resumedDebugStackSuppressions: Map<string, number>;
   runnableNodeClicks: Map<string, number>;
@@ -296,7 +296,7 @@ export function registerGoBenchRunnables(options: {
 }): vscode.Disposable {
   const runningTerminals = new Map<string, vscode.Terminal>();
   const debugSessions = new Map<string, vscode.DebugSession>();
-  const debugConsoles = new Map<string, GoBenchDebugConsole>();
+  const debugConsoles = new GoBenchDebugConsolePanel();
   const pendingDebugSessionItems = new Map<string, string>();
   const resumedDebugStackSuppressions = new Map<string, number>();
   const runnableNodeClicks = new Map<string, number>();
@@ -337,7 +337,7 @@ export function registerGoBenchRunnables(options: {
     for (const [id, debugSession] of debugSessions) {
       if (debugSession === session) {
         debugSessions.delete(id);
-        debugConsoles.get(id)?.detachSession('Debug session terminated.');
+        debugConsoles.getConsole(id)?.detachSession('Debug session terminated.');
         options.provider.clearRuntimeState(id);
       }
     }
@@ -634,13 +634,12 @@ export function registerGoBenchRunnables(options: {
     async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
       const item = normalizeRunnableCommandArgument(itemOrNode);
       const session = item ? runtimeOptions.debugSessions.get(item.id) : vscode.debug.activeDebugSession;
-      const debugConsole = session ? findDebugConsoleBySession(session, debugConsoles) : undefined;
+      const debugConsole = session ? debugConsoles.findConsoleBySession(session) : undefined;
       if (!debugConsole) {
         void vscode.window.showInformationMessage('Go Bench: no active Go Bench debug console.');
         return;
       }
-      debugConsole.show();
-      await debugConsole.evaluateFromInputBox();
+      debugConsole.focusInput();
     }
   );
   const focusResultCommand = vscode.commands.registerCommand(commands.focusRunnableResult, async (itemOrNode?: GoBenchRunnableItem | RunnableTreeNode) => {
@@ -699,10 +698,7 @@ export function registerGoBenchRunnables(options: {
     new vscode.Disposable(() => {
       runningTerminals.clear();
       debugSessions.clear();
-      for (const debugConsole of debugConsoles.values()) {
-        debugConsole.dispose();
-      }
-      debugConsoles.clear();
+      debugConsoles.dispose();
       pendingDebugSessionItems.clear();
       resumedDebugStackSuppressions.clear();
       runnableNodeClicks.clear();
@@ -1108,10 +1104,10 @@ async function stopRunnable(
   if (debugSession) {
     await vscode.debug.stopDebugging(debugSession);
     options.debugSessions.delete(item.id);
-    options.debugConsoles.get(item.id)?.detachSession('Debug session stopped.');
+    options.debugConsoles.getConsole(item.id)?.detachSession('Debug session stopped.');
   } else if (state === 'debugging') {
     await vscode.debug.stopDebugging();
-    options.debugConsoles.get(item.id)?.detachSession('Debug session stopped.');
+    options.debugConsoles.getConsole(item.id)?.detachSession('Debug session stopped.');
   }
   options.pendingDebugSessionItems.delete(item.label);
   options.pendingDebugSessionItems.delete(`Debug ${item.label}`);
@@ -1192,10 +1188,10 @@ async function runDebugControl(
 
 async function focusDebugConsole(
   session?: vscode.DebugSession,
-  debugConsoles?: ReadonlyMap<string, GoBenchDebugConsole>
+  debugConsoles?: GoBenchDebugConsolePanel
 ): Promise<void> {
   if (session && debugConsoles) {
-    const debugConsole = findDebugConsoleBySession(session, debugConsoles);
+    const debugConsole = debugConsoles.findConsoleBySession(session);
     if (debugConsole) {
       selectActiveDebugSession(session);
       debugConsole.show();
@@ -1625,31 +1621,13 @@ function findRunnableIdForDebugSession(
 function getRunnableDebugConsole(
   itemId: string,
   label: string,
-  debugConsoles: Map<string, GoBenchDebugConsole>
+  debugConsoles: GoBenchDebugConsolePanel
 ): GoBenchDebugConsole {
-  let debugConsole = debugConsoles.get(itemId);
-  if (!debugConsole) {
-    debugConsole = new GoBenchDebugConsole(label);
-    debugConsoles.set(itemId, debugConsole);
-  }
-  return debugConsole;
+  return debugConsoles.getOrCreateConsole(itemId, label);
 }
 
-function findDebugConsoleBySession(
-  session: vscode.DebugSession,
-  debugConsoles: ReadonlyMap<string, GoBenchDebugConsole>
-): GoBenchDebugConsole | undefined {
-  for (const debugConsole of debugConsoles.values()) {
-    if (debugConsole.matchesSession(session)) {
-      return debugConsole;
-    }
-  }
-  return undefined;
-}
-
-function disposeRunnableDebugConsole(itemId: string, debugConsoles: Map<string, GoBenchDebugConsole>): void {
-  debugConsoles.get(itemId)?.dispose();
-  debugConsoles.delete(itemId);
+function disposeRunnableDebugConsole(itemId: string, debugConsoles: GoBenchDebugConsolePanel): void {
+  debugConsoles.disposeConsole(itemId);
 }
 
 function resolveStackItemSession(stackItem: unknown): vscode.DebugSession | undefined {

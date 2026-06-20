@@ -137,6 +137,14 @@ export const sidebarViewIds = {
   runAndDebug: 'goBench.sidebar.runAndDebug'
 } as const;
 
+/** Go Bench 底部 panel 贡献的 view container 和 view ID。 */
+export const debugPanelViewIds = {
+  /** 底部 panel tab，承载 Go Bench 自定义调试控制台。 */
+  container: 'go-bench-panel',
+  /** Go Bench 自定义 Debug Console webview。 */
+  debugConsole: 'goBench.panel.debugConsole'
+} as const;
+
 /** VSCode when-clause context keys，用于让 Test Explorer 标题区显示当前树模式的图标按钮。 */
 export const contextKeys = {
   /** 当前 Testing API 树模式为 Go Bench 增强树。 */

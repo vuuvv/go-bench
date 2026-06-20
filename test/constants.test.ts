@@ -8,6 +8,7 @@ import { describe, it } from 'node:test';
 import {
   commands,
   configurationKeys,
+  debugPanelViewIds,
   defaultSidebarConfig,
   contextKeys,
   defaultTableTestConfig,
@@ -85,6 +86,13 @@ describe('extension skeleton constants', () => {
       files: 'goBench.sidebar.files',
       tests: 'goBench.sidebar.tests',
       runAndDebug: 'goBench.sidebar.runAndDebug'
+    });
+  });
+
+  it('defines stable Go Bench panel view ids', () => {
+    assert.deepEqual(debugPanelViewIds, {
+      container: 'go-bench-panel',
+      debugConsole: 'goBench.panel.debugConsole'
     });
   });
 

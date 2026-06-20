@@ -49,7 +49,7 @@ export function normalizeOutputViewNewlines(value: string): string {
   return value.replace(/\r?\n/g, '\n');
 }
 
-export function formatDebugConsoleOutputChannelName(label: string): string {
+export function formatDebugConsoleSessionTitle(label: string): string {
   return `Go Bench Debug: ${label}`;
 }
 

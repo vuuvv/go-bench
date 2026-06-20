@@ -30,7 +30,8 @@
     "workspaceContains:**/*_test.go",
     "onView:goBench.sidebar.files",
     "onView:goBench.sidebar.tests",
-    "onView:goBench.sidebar.runAndDebug"
+    "onView:goBench.sidebar.runAndDebug",
+    "onView:goBench.panel.debugConsole"
   ],
   "main": "./out/src/extension.js",
   "contributes": {
@@ -324,6 +325,13 @@
           "title": "Go Bench",
           "icon": "media/activitybar-icon.svg"
         }
+      ],
+      "panel": [
+        {
+          "id": "go-bench-panel",
+          "title": "Go Bench",
+          "icon": "media/activitybar-icon.svg"
+        }
       ]
     },
     "views": {
@@ -345,6 +353,13 @@
           "name": "Run and Debug",
           "type": "tree",
           "when": "config.goBench.sidebar.enabled && config.goBench.sidebar.runnables.enabled"
+        }
+      ],
+      "go-bench-panel": [
+        {
+          "id": "goBench.panel.debugConsole",
+          "name": "Debug Console",
+          "type": "webview"
         }
       ]
     },

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   formatDebugConsoleOutput,
-  formatDebugConsoleOutputChannelName,
+  formatDebugConsoleSessionTitle,
   isDapOutputEventMessage,
   normalizeOutputViewNewlines
 } from '../src/debugConsoleModel';
@@ -14,7 +14,7 @@ describe('Go Bench debug console model', () => {
     assert.equal(isDapOutputEventMessage(undefined), false);
   });
 
-  it('normalizes newlines for Output view output', () => {
+  it('normalizes newlines for panel output', () => {
     assert.equal(normalizeOutputViewNewlines('a\nb\r\nc'), 'a\nb\nc');
   });
 
@@ -41,7 +41,7 @@ describe('Go Bench debug console model', () => {
     );
   });
 
-  it('uses stable Output channel names for runnable debug sessions', () => {
-    assert.equal(formatDebugConsoleOutputChannelName('api'), 'Go Bench Debug: api');
+  it('uses stable session titles for runnable debug sessions', () => {
+    assert.equal(formatDebugConsoleSessionTitle('api'), 'Go Bench Debug: api');
   });
 });
