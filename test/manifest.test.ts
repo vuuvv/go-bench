@@ -230,6 +230,16 @@ describe('VSCode extension manifest', () => {
         icon: '$(debug-restart)'
       },
       {
+        command: commands.debugRunnableGroup,
+        title: 'Debug Group',
+        icon: '$(debug-alt)'
+      },
+      {
+        command: commands.removeRunnableGroupItems,
+        title: 'Remove Group Items',
+        icon: '$(trash)'
+      },
+      {
         command: commands.removeRunnableGroup,
         title: 'Remove Group',
         icon: '$(trash)'
@@ -268,6 +278,10 @@ describe('VSCode extension manifest', () => {
         command: commands.revealRunnable,
         title: 'Go to File',
         icon: '$(go-to-file)'
+      },
+      {
+        command: commands.focusRunnableDebugConsole,
+        title: 'Focus Debug Console'
       },
       {
         command: commands.copyRunnablePath,
@@ -530,14 +544,24 @@ describe('VSCode extension manifest', () => {
         group: 'inline@0'
       },
       {
+        command: commands.debugRunnableGroup,
+        when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroupStopped`,
+        group: 'inline@1'
+      },
+      {
         command: commands.stopRunnableGroup,
         when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroupRunning`,
-        group: 'inline@1'
+        group: 'inline@2'
       },
       {
         command: commands.restartRunnableGroup,
         when: `view == ${sidebarViewIds.runAndDebug} && viewItem == goBenchRunnableGroupRunning`,
-        group: 'inline@2'
+        group: 'inline@3'
+      },
+      {
+        command: commands.removeRunnableGroupItems,
+        when: `view == ${sidebarViewIds.runAndDebug} && (viewItem == goBenchRunnableGroupStopped || viewItem == goBenchRunnableGroupRunning)`,
+        group: 'inline@4'
       },
       {
         command: commands.editRunnable,

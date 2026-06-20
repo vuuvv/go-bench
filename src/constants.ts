@@ -77,6 +77,10 @@ export const commands = {
   stopRunnableGroup: 'goBench.runnables.stopGroup',
   /** 批量重启 Run and Debug 分组中的 runnable。 */
   restartRunnableGroup: 'goBench.runnables.restartGroup',
+  /** 批量调试 Run and Debug 分组中的 runnable。 */
+  debugRunnableGroup: 'goBench.runnables.debugGroup',
+  /** 批量删除 Run and Debug 分组中的 runnable；只移除列表项，不删除真实文件。 */
+  removeRunnableGroupItems: 'goBench.runnables.removeGroupItems',
   /** 删除 Run and Debug runnable 分组但保留其中项目。 */
   removeRunnableGroup: 'goBench.runnables.removeGroup',
   /** 从 Go Bench Run and Debug 列表移除运行目标。 */
@@ -93,6 +97,8 @@ export const commands = {
   debugRunnable: 'goBench.runnables.debug',
   /** 打开 Go Bench runnable 对应的文件或目录。 */
   revealRunnable: 'goBench.runnables.reveal',
+  /** 聚焦 Go Bench runnable 对应的 Debug Console。 */
+  focusRunnableDebugConsole: 'goBench.runnables.focusDebugConsole',
   /** 复制 Go Bench runnable 的绝对路径。 */
   copyRunnablePath: 'goBench.runnables.copyPath'
 } as const;

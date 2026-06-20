@@ -663,7 +663,24 @@ CodeLens 行为要求：
 - 支持 run/debug/delete/edit。
 - 补充命令构造、debug 配置和持久化测试。
 
+### 14.5 里程碑 16：运行与调试状态和分组批量操作补强
+
+- 修复 runnable debug 启动、终止和视图状态同步。
+- runnable 调试中点击项目时聚焦 Debug Console；普通项目点击只选中节点，打开源码改由 Go to File inline action 执行。
+- 保留标准 debug inline 按钮：未运行项目显示 run/debug，运行或调试中显示 stop/restart。
+- group 节点补充批量 debug、批量 stop、批量 restart 和批量删除项目入口。
+- 停止 debug runnable 时同时停止 debug session，并尽力关闭 Debug Console 面板。
+
 ## 15. 待确认问题
+
+已确认并纳入里程碑 16：
+
+- 调试状态必须与 VSCode debug session 启动和终止事件同步；调试中的 runnable 点击项目时聚焦 Debug Console。
+- 项目需要显示标准调试按钮；未运行时显示 run/debug，运行或调试中显示 stop/restart，避免动作混杂。
+- 项目组需要批量 stop/restart、批量删除项目和批量调试按钮；点击项目本体不再直接跳转文件，打开源码保留为 Go to File action。
+- 点击停止按钮停止调试时，需要停止对应 debug session，并尽力关闭 Debug Console 面板。
+
+仍待确认：
 
 - 文件视图是否必须完全替代 VSCode 原生 Explorer，还是只需要在 Go Bench 侧边栏中提供高频文件操作。
 - runnable 列表第一阶段是否只支持 Go 目标，还是需要同时支持任意 shell command。

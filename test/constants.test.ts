@@ -54,6 +54,8 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.runRunnableGroup, 'goBench.runnables.runGroup');
     assert.equal(commands.stopRunnableGroup, 'goBench.runnables.stopGroup');
     assert.equal(commands.restartRunnableGroup, 'goBench.runnables.restartGroup');
+    assert.equal(commands.debugRunnableGroup, 'goBench.runnables.debugGroup');
+    assert.equal(commands.removeRunnableGroupItems, 'goBench.runnables.removeGroupItems');
     assert.equal(commands.removeRunnableGroup, 'goBench.runnables.removeGroup');
     assert.equal(commands.removeRunnable, 'goBench.runnables.remove');
     assert.equal(commands.editRunnable, 'goBench.runnables.edit');
@@ -62,6 +64,7 @@ describe('extension skeleton constants', () => {
     assert.equal(commands.restartRunnable, 'goBench.runnables.restart');
     assert.equal(commands.debugRunnable, 'goBench.runnables.debug');
     assert.equal(commands.revealRunnable, 'goBench.runnables.reveal');
+    assert.equal(commands.focusRunnableDebugConsole, 'goBench.runnables.focusDebugConsole');
     assert.equal(commands.copyRunnablePath, 'goBench.runnables.copyPath');
   });
 
