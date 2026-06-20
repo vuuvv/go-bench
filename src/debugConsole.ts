@@ -17,6 +17,8 @@ type WebviewMessage =
   | { command: 'ready' }
   | { command: 'select'; itemId?: string }
   | { command: 'clear'; itemId?: string }
+  | { command: 'deleteEnded'; itemId?: string }
+  | { command: 'deleteAllEnded' }
   | { command: 'evaluate'; itemId?: string; expression?: string };
 
 const maxEndedDebugConsoles = 100;
@@ -39,7 +41,7 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
   public getOrCreateConsole(runnableId: string, label: string): GoBenchDebugConsole {
     const activeConsoleId = this.activeConsoleIdsByRunnable.get(runnableId);
     let debugConsole = activeConsoleId ? this.consoles.get(activeConsoleId) : undefined;
-    if (debugConsole && !debugConsole.connected) {
+    if (debugConsole?.ended) {
       debugConsole = undefined;
       this.activeConsoleIdsByRunnable.delete(runnableId);
     }
@@ -82,6 +84,30 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
     this.postState();
   }
 
+  public deleteEndedConsole(itemId: string): void {
+    const debugConsole = this.consoles.get(itemId);
+    if (!debugConsole?.ended) {
+      return;
+    }
+    this.consoles.delete(itemId);
+    if (this.activeItemId === itemId) {
+      this.activeItemId = this.selectDefaultActiveItemId();
+    }
+    this.postState();
+  }
+
+  public deleteAllEndedConsoles(): void {
+    for (const [itemId, debugConsole] of this.consoles) {
+      if (debugConsole.ended) {
+        this.consoles.delete(itemId);
+      }
+    }
+    if (this.activeItemId && !this.consoles.has(this.activeItemId)) {
+      this.activeItemId = this.selectDefaultActiveItemId();
+    }
+    this.postState();
+  }
+
   public showConsole(itemId: string, options: { focusInput?: boolean } = {}): void {
     if (this.consoles.has(itemId)) {
       this.activeItemId = itemId;
@@ -92,7 +118,7 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
 
   public notifyChanged(itemId: string): void {
     const debugConsole = this.consoles.get(itemId);
-    if (debugConsole && !debugConsole.connected && this.activeConsoleIdsByRunnable.get(debugConsole.runnableId) === itemId) {
+    if (debugConsole?.ended && this.activeConsoleIdsByRunnable.get(debugConsole.runnableId) === itemId) {
       this.activeConsoleIdsByRunnable.delete(debugConsole.runnableId);
     }
     if (!this.activeItemId || this.consoles.size === 1) {
@@ -135,8 +161,18 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
       return;
     }
 
+    if (message.command === 'deleteAllEnded') {
+      this.deleteAllEndedConsoles();
+      return;
+    }
+
     const itemId = message.itemId ?? this.activeItemId;
     if (!itemId) {
+      return;
+    }
+
+    if (message.command === 'deleteEnded') {
+      this.deleteEndedConsole(itemId);
       return;
     }
 
@@ -191,7 +227,7 @@ export class GoBenchDebugConsolePanel implements vscode.WebviewViewProvider, vsc
 
   private pruneEndedConsoles(): void {
     const ended = [...this.consoles.values()]
-      .filter(debugConsole => !debugConsole.connected)
+      .filter(debugConsole => debugConsole.ended)
       .sort((left, right) => (right.endedAt ?? 0) - (left.endedAt ?? 0));
     const expired = ended.slice(maxEndedDebugConsoles);
     for (const debugConsole of expired) {
@@ -260,7 +296,11 @@ export class GoBenchDebugConsole {
   }
 
   public get connected(): boolean {
-    return Boolean(this.session);
+    return this.endedAtValue === undefined;
+  }
+
+  public get ended(): boolean {
+    return this.endedAtValue !== undefined;
   }
 
   public get endedAt(): number | undefined {
@@ -383,19 +423,49 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       display: flex;
       flex: 0 0 220px;
       min-width: 160px;
-      max-width: 280px;
+      max-width: 420px;
       flex-direction: column;
       gap: 6px;
       padding: 8px;
-      border-left: 1px solid var(--vscode-panel-border);
       background: var(--vscode-sideBar-background);
       box-sizing: border-box;
     }
-    .tree-group {
+    .resize-handle {
+      flex: 0 0 5px;
+      width: 5px;
+      cursor: col-resize;
+      border-left: 1px solid var(--vscode-panel-border);
+      background: var(--vscode-panel-background, var(--vscode-editor-background));
+      box-sizing: border-box;
+    }
+    .resize-handle:hover,
+    .resize-handle.dragging {
+      background: var(--vscode-focusBorder);
+    }
+    body.resizing {
+      cursor: col-resize;
+      user-select: none;
+    }
+    .tree-root {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .tree-root-label {
       color: var(--vscode-descriptionForeground);
       font-size: 11px;
       text-transform: uppercase;
       padding: 4px 4px 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tree-children {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      padding-left: 12px;
     }
     .tabs {
       display: flex;
@@ -406,6 +476,7 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       overflow-y: auto;
     }
     .tab {
+      display: flex;
       border: 0;
       color: var(--vscode-foreground);
       background: transparent;
@@ -415,6 +486,8 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       border-radius: 3px;
       cursor: pointer;
       font: inherit;
+      align-items: center;
+      gap: 8px;
       text-align: left;
       overflow: hidden;
     }
@@ -427,18 +500,42 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
     }
     .tab-title {
       display: block;
+      flex: 1;
+      min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .tab-meta {
       display: block;
-      margin-top: 2px;
+      flex: 0 0 auto;
+      max-width: 82px;
       color: var(--vscode-descriptionForeground);
       font-size: 11px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .delete-session {
+      flex: 0 0 18px;
+      width: 18px;
+      height: 18px;
+      border: 0;
+      border-radius: 3px;
+      color: var(--vscode-icon-foreground);
+      background: transparent;
+      cursor: pointer;
+      line-height: 18px;
+      padding: 0;
+      text-align: center;
+      visibility: hidden;
+    }
+    .tab:hover .delete-session,
+    .delete-session:focus {
+      visibility: visible;
+    }
+    .delete-session:hover {
+      background: var(--vscode-toolbar-hoverBackground);
     }
     .action {
       border: 1px solid var(--vscode-button-border, transparent);
@@ -513,9 +610,11 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
         <button class="action" type="submit">Evaluate</button>
       </form>
     </main>
+    <div id="resizeHandle" class="resize-handle" role="separator" aria-orientation="vertical" title="Resize sessions"></div>
     <aside class="session-rail">
       <div id="tabs" class="tabs"></div>
       <button id="clear" class="action secondary" type="button">Clear</button>
+      <button id="clearEnded" class="action secondary" type="button">Clear Ended</button>
     </aside>
   </div>
   <script nonce="${nonce}">
@@ -525,7 +624,16 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
     const form = document.getElementById('repl');
     const input = document.getElementById('input');
     const clear = document.getElementById('clear');
+    const clearEnded = document.getElementById('clearEnded');
+    const resizeHandle = document.getElementById('resizeHandle');
+    const sessionRail = document.querySelector('.session-rail');
+    const persisted = vscode.getState() || {};
+    if (typeof persisted.sessionRailWidth === 'number') {
+      setSessionRailWidth(persisted.sessionRailWidth);
+    }
     let state = { sessions: [], activeItemId: undefined };
+    let resizeStartX = 0;
+    let resizeStartWidth = 0;
 
     window.addEventListener('message', event => {
       if (event.data.command !== 'state') {
@@ -550,6 +658,10 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       vscode.postMessage({ command: 'clear', itemId: state.activeItemId });
     });
 
+    clearEnded.addEventListener('click', () => {
+      vscode.postMessage({ command: 'deleteAllEnded' });
+    });
+
     form.addEventListener('submit', event => {
       event.preventDefault();
       const active = findActiveSession();
@@ -561,11 +673,39 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
       vscode.postMessage({ command: 'evaluate', itemId: state.activeItemId, expression });
     });
 
+    resizeHandle.addEventListener('mousedown', event => {
+      resizeStartX = event.clientX;
+      resizeStartWidth = sessionRail.getBoundingClientRect().width;
+      resizeHandle.classList.add('dragging');
+      document.body.classList.add('resizing');
+      window.addEventListener('mousemove', resizeSessions);
+      window.addEventListener('mouseup', stopResizeSessions, { once: true });
+      event.preventDefault();
+    });
+
+    function resizeSessions(event) {
+      const nextWidth = resizeStartWidth - (event.clientX - resizeStartX);
+      setSessionRailWidth(nextWidth);
+    }
+
+    function stopResizeSessions() {
+      resizeHandle.classList.remove('dragging');
+      document.body.classList.remove('resizing');
+      window.removeEventListener('mousemove', resizeSessions);
+      vscode.setState({ ...persisted, sessionRailWidth: sessionRail.getBoundingClientRect().width });
+    }
+
+    function setSessionRailWidth(width) {
+      const clamped = Math.min(Math.max(width, 160), 420);
+      sessionRail.style.flexBasis = clamped + 'px';
+    }
+
     function render() {
       const sessions = state.sessions || [];
       const active = findActiveSession();
       tabs.replaceChildren(...renderSessionTree(sessions, active));
       clear.disabled = !active;
+      clearEnded.disabled = !sessions.some(session => !session.connected);
       input.disabled = !active?.connected;
 
       if (!active) {
@@ -592,19 +732,23 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
     function renderSessionTree(sessions, active) {
       const running = sessions.filter(session => session.connected);
       const ended = sessions.filter(session => !session.connected);
-      const nodes = [];
-      nodes.push(createGroup('Running', running.length));
-      nodes.push(...running.map(session => createSessionButton(session, active)));
-      nodes.push(createGroup('Ended', ended.length));
-      nodes.push(...ended.map(session => createSessionButton(session, active)));
-      return nodes;
+      return [
+        createSessionGroup('Running', running, active),
+        createSessionGroup('Ended', ended, active)
+      ];
     }
 
-    function createGroup(label, count) {
-      const element = document.createElement('div');
-      element.className = 'tree-group';
-      element.textContent = label + ' (' + count + ')';
-      return element;
+    function createSessionGroup(label, sessions, active) {
+      const root = document.createElement('div');
+      root.className = 'tree-root';
+      const header = document.createElement('div');
+      header.className = 'tree-root-label';
+      header.textContent = 'v ' + label + ' (' + sessions.length + ')';
+      const children = document.createElement('div');
+      children.className = 'tree-children';
+      children.replaceChildren(...sessions.map(session => createSessionButton(session, active)));
+      root.append(header, children);
+      return root;
     }
 
     function createSessionButton(session, active) {
@@ -620,6 +764,19 @@ function buildDebugConsoleHtml(webview: vscode.Webview): string {
         meta.className = 'tab-meta';
         meta.textContent = formatSessionMeta(session);
         button.append(title, meta);
+        if (!session.connected) {
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'delete-session';
+          remove.dataset.id = session.itemId;
+          remove.title = 'Delete ended session';
+          remove.textContent = 'x';
+          remove.addEventListener('click', event => {
+            event.stopPropagation();
+            vscode.postMessage({ command: 'deleteEnded', itemId: session.itemId });
+          });
+          button.append(remove);
+        }
         return button;
     }
 

@@ -50,7 +50,7 @@ export function normalizeOutputViewNewlines(value: string): string {
 }
 
 export function formatDebugConsoleSessionTitle(label: string): string {
-  return `Go Bench Debug: ${label}`;
+  return label;
 }
 
 function formatDebugOutputSource(source: string | undefined, line: number | undefined, column: number | undefined): string {

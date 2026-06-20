@@ -42,6 +42,6 @@ describe('Go Bench debug console model', () => {
   });
 
   it('uses stable session titles for runnable debug sessions', () => {
-    assert.equal(formatDebugConsoleSessionTitle('api'), 'Go Bench Debug: api');
+    assert.equal(formatDebugConsoleSessionTitle('api'), 'api');
   });
 });

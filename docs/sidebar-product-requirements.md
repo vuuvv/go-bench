@@ -681,9 +681,10 @@ CodeLens 行为要求：
 ### 14.6 里程碑 17：Go Bench Panel Debug Console
 
 - 在 VSCode 底部 panel 中创建新的 `Go Bench` tab，并在其中放置 Go Bench 自定义 Debug Console webview。
-- 为 runnable debug session 在 Go Bench panel 内创建可切换 session tab，避免依赖 VSCode 原生 Debug Console 的内部 session label 切换能力。
+- 为 runnable debug session 在 Go Bench panel 内创建可切换 session tab，标题直接使用 runnable label，不显示 `Go Bench Debug:` 前缀，避免依赖 VSCode 原生 Debug Console 的内部 session label 切换能力。
 - Go Bench panel 右侧以树形结构展示 debug sessions，区分正在运行和已经结束的 session；已结束 session 按结束时间倒序排列，最多保留 100 条历史记录。
-- session 节点标题必须单行省略，并通过节点说明或 tooltip 提示运行时长、结束时间等信息。
+- `Running` 和 `Ended` 必须作为树形结构的根节点，session 作为其子节点缩进展示；session 节点标题必须单行省略，并通过节点说明或 tooltip 提示运行时长、结束时间等信息。
+- session 历史仅保存在扩展进程内存中；用户必须可以删除单条已结束 session，也可以一次清空所有已结束 session。
 - debug adapter 发出的 DAP `output` 事件必须写入对应 runnable session，stdout、stderr、console、important 等类别保持可区分展示。
 - Go Bench panel 内必须支持清空当前 session 输出信息，并保留停止或终止 debug session 后的历史输出，方便继续查看本次调试结果。
 - Go Bench panel 内必须支持 Debug Console 的 REPL evaluate 能力：用户在 panel 输入表达式后通过当前 debug session 发送 `evaluate` 请求，暂停在栈帧时带上当前 frameId。
