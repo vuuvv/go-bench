@@ -198,7 +198,7 @@ describe('Go Bench runnable model', () => {
     };
 
     assert.deepEqual(buildRunnableDebugConfiguration(item, workspace), {
-      name: 'Debug worker',
+      name: 'worker',
       type: 'go',
       request: 'launch',
       mode: 'debug',

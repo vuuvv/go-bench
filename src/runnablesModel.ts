@@ -327,7 +327,7 @@ export function buildRunnableDebugConfiguration(
   const targetPath = resolvePersistedPath(item.uri, workspaceFolder);
   const cwd = resolvePersistedPath(item.cwd, workspaceFolder);
   const configuration: GoBenchRunnableDebugConfiguration = {
-    name: `Debug ${item.label}`,
+    name: item.label,
     type: 'go',
     request: 'launch',
     mode: 'debug',

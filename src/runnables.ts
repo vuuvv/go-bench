@@ -1041,6 +1041,7 @@ async function stopRunnable(
     await vscode.debug.stopDebugging();
     await closeDebugConsole();
   }
+  options.pendingDebugSessionItems.delete(item.label);
   options.pendingDebugSessionItems.delete(`Debug ${item.label}`);
   options.provider.clearRuntimeState(item.id);
   options.output.appendLine(`Stopped runnable ${item.label}`);
@@ -1119,12 +1120,15 @@ async function runDebugControl(
 
 async function focusDebugConsole(session?: vscode.DebugSession): Promise<void> {
   if (session) {
-    selectActiveDebugSession(session);
+    await selectDebugConsoleSession(session);
   }
   try {
     await vscode.commands.executeCommand('workbench.debug.action.focusRepl');
   } catch {
     // 旧版或裁剪环境可能没有该内置命令；调试会话本身已经启动，聚焦失败不应影响状态同步。
+  }
+  if (session) {
+    await selectDebugConsoleSession(session);
   }
 }
 
@@ -1191,6 +1195,15 @@ function selectActiveDebugSession(session: vscode.DebugSession): void {
     (vscode.debug as { activeDebugSession?: vscode.DebugSession }).activeDebugSession = session;
   } catch {
     // VSCode does not document setting the active debug session; focus still works for the current console.
+  }
+}
+
+async function selectDebugConsoleSession(session: vscode.DebugSession): Promise<void> {
+  selectActiveDebugSession(session);
+  try {
+    await vscode.commands.executeCommand('workbench.action.debug.selectRepl', session);
+  } catch {
+    // 这是 VSCode 内部命令；不支持时保留 active session 作为最接近的回退。
   }
 }
 
