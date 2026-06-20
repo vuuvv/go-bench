@@ -309,6 +309,10 @@
         "title": "Focus Debug Console"
       },
       {
+        "command": "goBench.runnables.debug.evaluate",
+        "title": "Evaluate in Debug Console"
+      },
+      {
         "command": "goBench.runnables.copyPath",
         "title": "Copy Path"
       }
@@ -559,6 +563,11 @@
           "group": "inline@9"
         },
         {
+          "command": "goBench.runnables.debug.evaluate",
+          "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
+          "group": "navigation@0"
+        },
+        {
           "command": "goBench.runnables.runGroup",
           "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableGroupStopped || viewItem == goBenchRunnableGroupRunning)",
           "group": "inline@0"
@@ -586,22 +595,22 @@
         {
           "command": "goBench.runnables.edit",
           "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
-          "group": "navigation@0"
+          "group": "navigation@1"
         },
         {
           "command": "goBench.runnables.moveToGroup",
           "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
-          "group": "navigation@1"
+          "group": "navigation@2"
         },
         {
           "command": "goBench.runnables.remove",
           "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
-          "group": "navigation@2"
+          "group": "navigation@3"
         },
         {
           "command": "goBench.runnables.copyPath",
           "when": "view == goBench.sidebar.runAndDebug && (viewItem == goBenchRunnableStopped || viewItem == goBenchRunnableRunning || viewItem == goBenchRunnableDebugging || viewItem == goBenchRunnableDebugPaused)",
-          "group": "navigation@3"
+          "group": "navigation@4"
         },
         {
           "command": "goBench.runnables.removeGroup",
