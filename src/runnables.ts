@@ -204,9 +204,10 @@ export class GoBenchRunnablesProvider
       : vscode.TreeItemCollapsibleState.None;
     const treeItem = new vscode.TreeItem(node.item.label, collapsibleState);
     const runtimeState = this.getRuntimeState(node.item.id);
+    const debugState = this.getDebugState(node.item.id);
     treeItem.tooltip = `${node.item.label}\n${node.item.uri}\npackage: ${node.item.packageName ?? 'unknown'}\nworkspace: ${node.item.workspaceFolder}`;
-    treeItem.contextValue = formatRunnableContextValue(runtimeState, this.getDebugState(node.item.id));
-    treeItem.iconPath = getRunnableIcon(node.item, runtimeState);
+    treeItem.contextValue = formatRunnableContextValue(runtimeState, debugState);
+    treeItem.iconPath = getRunnableIcon(node.item, runtimeState, debugState);
     if (runtimeState !== 'stopped') {
       treeItem.command = {
         command: commands.focusRunnableResult,
@@ -1430,12 +1431,15 @@ function formatRunnableContextValue(state: RunnableRuntimeState, debugState: Run
   return 'goBenchRunnableStopped';
 }
 
-function getRunnableIcon(item: GoBenchRunnableItem, state: RunnableRuntimeState): vscode.ThemeIcon {
+function getRunnableIcon(item: GoBenchRunnableItem, state: RunnableRuntimeState, debugState: RunnableDebugState): vscode.ThemeIcon {
   if (state === 'running') {
     return new vscode.ThemeIcon('play-circle', new vscode.ThemeColor('debugIcon.startForeground'));
   }
   if (state === 'debugging') {
-    return new vscode.ThemeIcon('debug-alt', new vscode.ThemeColor('debugIcon.breakpointForeground'));
+    if (debugState === 'paused') {
+      return new vscode.ThemeIcon('debug-pause', new vscode.ThemeColor('debugIcon.pauseForeground'));
+    }
+    return new vscode.ThemeIcon('debug-alt', new vscode.ThemeColor('debugIcon.continueForeground'));
   }
   return new vscode.ThemeIcon(item.kind === 'goFile' ? 'go-to-file' : 'package');
 }
