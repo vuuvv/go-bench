@@ -87,10 +87,6 @@ type DapStackTraceResponse = {
   }>;
 };
 
-type DapThreadsResponse = {
-  threads?: Array<{ id: number; name: string }>;
-};
-
 type RunnableDebugControlAction = 'pause' | 'continue' | 'stepOver' | 'stepInto' | 'stepOut';
 
 const runnableDragMimeType = 'application/vnd.code.tree.goBench.sidebar.runAndDebug';
@@ -1098,7 +1094,7 @@ async function runDebugControl(
   }
 
   await focusDebugConsole();
-  await executeDebugControlRequest(item, session, options, action);
+  await executeDebugControlCommand(item, options, action);
 }
 
 async function focusDebugConsole(): Promise<void> {
@@ -1178,65 +1174,39 @@ async function readDebugStackFrames(
   }
 }
 
-async function executeDebugControlRequest(
+async function executeDebugControlCommand(
   item: GoBenchRunnableItem,
-  session: vscode.DebugSession,
   options: RunnableRuntimeOptions,
   action: RunnableDebugControlAction
 ): Promise<void> {
   try {
-    if (action === 'pause') {
-      for (const threadId of await readDebugThreadIds(session)) {
-        await session.customRequest('pause', { threadId });
-      }
-      return;
-    }
-
-    const threadId = resolveRunnableDebugControlThreadId(item.id, options.provider, session);
-    if (threadId === undefined) {
-      await vscode.window.showInformationMessage('Go Bench: no paused debug stack is active for this runnable.');
-      return;
-    }
-
-    await session.customRequest(formatDebugControlRequest(action), { threadId });
+    await vscode.commands.executeCommand(formatDebugControlCommand(action));
     if (action === 'continue') {
       options.provider.setDebugState(item.id, 'running');
       options.provider.clearDebugStackFrames(item.id);
     }
   } catch (error) {
     options.output.appendLine(`Go Bench: debug control "${action}" failed: ${String(error)}`);
-    void vscode.window.showErrorMessage(`Go Bench: failed to ${formatDebugControlTitle(action)} debug session.`);
+    void vscode.window.showErrorMessage(
+      `Go Bench: failed to ${formatDebugControlTitle(action)} debug session. ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
-async function readDebugThreadIds(session: vscode.DebugSession): Promise<number[]> {
-  const response = await session.customRequest('threads') as DapThreadsResponse;
-  return (response.threads ?? []).map(thread => thread.id);
-}
-
-function resolveRunnableDebugControlThreadId(
-  itemId: string,
-  provider: GoBenchRunnablesProvider,
-  session: vscode.DebugSession
-): number | undefined {
-  const activeStackItem = vscode.debug.activeStackItem;
-  if (resolveStackItemSession(activeStackItem) === session) {
-    return resolveDebugThreadId(activeStackItem);
-  }
-  return provider.getDebugStackFrames(itemId)[0]?.threadId;
-}
-
-function formatDebugControlRequest(action: Exclude<RunnableDebugControlAction, 'pause'>): string {
+function formatDebugControlCommand(action: RunnableDebugControlAction): string {
   if (action === 'stepOver') {
-    return 'next';
+    return 'workbench.action.debug.stepOver';
   }
   if (action === 'stepInto') {
-    return 'stepIn';
+    return 'workbench.action.debug.stepInto';
   }
   if (action === 'stepOut') {
-    return 'stepOut';
+    return 'workbench.action.debug.stepOut';
   }
-  return 'continue';
+  if (action === 'pause') {
+    return 'workbench.action.debug.pause';
+  }
+  return 'workbench.action.debug.continue';
 }
 
 function formatDebugControlTitle(action: RunnableDebugControlAction): string {
