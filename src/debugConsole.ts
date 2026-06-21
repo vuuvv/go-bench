@@ -681,10 +681,10 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
     .query-control {
       height: 24px;
       color: var(--vscode-input-foreground);
-      background: var(--vscode-input-background);
+      background: transparent;
       border: 0;
       border-radius: 2px;
-      padding: 2px 8px 2px 28px;
+      padding: 2px 8px;
       font: inherit;
       box-sizing: border-box;
       outline: none;
@@ -702,32 +702,25 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
     .query-input-shell:focus-within {
       border-color: var(--vscode-focusBorder);
     }
-    .query-mode-icon {
-      display: flex;
-      position: absolute;
-      left: 7px;
-      width: 16px;
-      height: 16px;
-      pointer-events: none;
-      align-items: center;
-      justify-content: center;
-    }
-    .query-mode-icon img {
-      width: 16px;
-      height: 16px;
-      display: block;
+    .search-count {
+      flex: 0 0 auto;
+      min-width: 38px;
+      color: var(--vscode-descriptionForeground);
+      font-size: 12px;
+      text-align: center;
+      white-space: nowrap;
     }
     .query-icon-button {
       display: flex;
-      flex: 0 0 24px;
-      width: 24px;
+      flex: 0 0 20px;
+      width: 20px;
       height: 24px;
       border: 1px solid transparent;
       border-radius: 3px;
       color: var(--vscode-icon-foreground);
       background: transparent;
       cursor: pointer;
-      padding: 3px;
+      padding: 2px;
       align-items: center;
       justify-content: center;
     }
@@ -738,9 +731,17 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
       border-color: var(--vscode-input-border, transparent);
     }
     .query-icon-button img {
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
       display: block;
+    }
+    .query-icon-button:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+    .query-icon-button:disabled:hover {
+      background: transparent;
+      border-color: transparent;
     }
     .search-bar {
       display: flex;
@@ -748,7 +749,7 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
       min-width: 0;
       height: 34px;
       padding: 4px 8px;
-      gap: 4px;
+      gap: 2px;
       border-bottom: 1px solid var(--vscode-panel-border);
       background: var(--vscode-panel-background, var(--vscode-editor-background));
       box-sizing: border-box;
@@ -1011,8 +1012,13 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
     .action.secondary:hover {
       background: var(--vscode-button-secondaryHoverBackground);
     }
-    .console {
+    .console-frame {
       flex: 1;
+      min-height: 0;
+      position: relative;
+    }
+    .console {
+      height: 100%;
       min-height: 0;
       overflow: auto;
       padding: 8px 10px;
@@ -1030,9 +1036,38 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
     .message.error { color: var(--vscode-errorForeground); }
     .message.status { color: var(--vscode-descriptionForeground); }
     .message.result { color: var(--vscode-debugTokenExpression-value); }
-    .message.search-match {
+    .search-hit {
+      color: var(--vscode-editor-foreground);
       background: var(--vscode-editor-findMatchHighlightBackground);
-      outline: 1px solid var(--vscode-editor-findMatchBorder, transparent);
+      border-radius: 2px;
+    }
+    .search-hit.current {
+      background: var(--vscode-editor-findMatchBackground);
+      outline: 2px solid var(--vscode-editor-findMatchBorder, var(--vscode-focusBorder));
+      box-shadow:
+        0 0 0 1px var(--vscode-editor-background),
+        0 0 0 3px var(--vscode-focusBorder);
+      color: var(--vscode-editor-foreground);
+      font-weight: 700;
+    }
+    .scroll-markers {
+      position: absolute;
+      top: 0;
+      right: 2px;
+      bottom: 0;
+      width: 4px;
+      pointer-events: none;
+    }
+    .scroll-marker {
+      position: absolute;
+      right: 0;
+      width: 4px;
+      min-height: 3px;
+      background: var(--vscode-editorOverviewRuler-findMatchForeground, var(--vscode-editor-findMatchHighlightBackground));
+      border-radius: 2px;
+    }
+    .scroll-marker.current {
+      background: var(--vscode-editorOverviewRuler-selectionHighlightForeground, var(--vscode-editor-findMatchBackground));
     }
     .repl {
       display: flex;
@@ -1064,12 +1099,17 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
     <main class="main">
       <div id="searchBar" class="search-bar">
         <div class="query-input-shell">
-          <span id="queryModeIcon" class="query-mode-icon" aria-hidden="true"></span>
           <input id="queryInput" class="query-control search-input" autocomplete="off" spellcheck="false" placeholder="Search">
         </div>
+        <span id="searchCount" class="search-count">0/0</span>
+        <button id="previousSearchMatch" class="query-icon-button" type="button" title="Previous Match"></button>
+        <button id="nextSearchMatch" class="query-icon-button" type="button" title="Next Match"></button>
         <button id="filterToggle" class="query-icon-button" type="button" title="Switch to Filter"></button>
       </div>
-      <div id="console" class="console"></div>
+      <div class="console-frame">
+        <div id="console" class="console"></div>
+        <div id="scrollMarkers" class="scroll-markers"></div>
+      </div>
       <form id="repl" class="repl">
         <span class="prompt">&gt;</span>
         <input id="input" autocomplete="off" spellcheck="false" placeholder="Evaluate expression">
@@ -1085,9 +1125,12 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
     const vscode = acquireVsCodeApi();
     const tabs = document.getElementById('tabs');
     const consoleView = document.getElementById('console');
-    const queryModeIcon = document.getElementById('queryModeIcon');
     const queryInput = document.getElementById('queryInput');
+    const searchCount = document.getElementById('searchCount');
+    const previousSearchMatch = document.getElementById('previousSearchMatch');
+    const nextSearchMatch = document.getElementById('nextSearchMatch');
     const filterToggle = document.getElementById('filterToggle');
+    const scrollMarkers = document.getElementById('scrollMarkers');
     const form = document.getElementById('repl');
     const input = document.getElementById('input');
     const resizeHandle = document.getElementById('resizeHandle');
@@ -1096,14 +1139,18 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
     const iconUris = ${JSON.stringify(iconUris)};
     let collapsedGroups = persisted.collapsedGroups || {};
     let queryMode = persisted.queryMode === 'filter' ? 'filter' : 'search';
+    let currentSearchMatchIndex = 0;
+    let previousHighlightKey = '';
+    let shouldRevealSearchMatch = false;
     if (typeof persisted.sessionRailWidth === 'number') {
       setSessionRailWidth(persisted.sessionRailWidth);
     }
     let state = { sessions: [], activeItemId: undefined };
     let resizeStartX = 0;
     let resizeStartWidth = 0;
+    previousSearchMatch.append(createIcon('chevron-up'));
+    nextSearchMatch.append(createIcon('chevron-down'));
     filterToggle.append(createIcon('filter'));
-    queryModeIcon.append(createIcon('search'));
 
     window.addEventListener('message', event => {
       if (event.data.command !== 'state') {
@@ -1173,10 +1220,20 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
     });
 
     queryInput.addEventListener('input', () => {
+      currentSearchMatchIndex = 0;
+      shouldRevealSearchMatch = true;
       vscode.postMessage({
         command: queryMode === 'filter' ? 'setFilterQuery' : 'setSearchQuery',
         value: queryInput.value
       });
+    });
+
+    previousSearchMatch.addEventListener('click', () => {
+      moveSearchMatch(-1);
+    });
+
+    nextSearchMatch.addEventListener('click', () => {
+      moveSearchMatch(1);
     });
 
     filterToggle.addEventListener('click', () => {
@@ -1217,6 +1274,8 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
     function render() {
       const sessions = state.sessions || [];
       const active = findActiveSession();
+      const wasNearBottom = isConsoleNearBottom();
+      const previousScrollTop = consoleView.scrollTop;
       tabs.replaceChildren(...renderSessionTree(sessions, active));
       input.disabled = !active?.connected;
       renderQueryControls();
@@ -1227,25 +1286,148 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
       }
 
       const fragment = document.createDocumentFragment();
-      const filterQuery = normalizeQuery(state.filterQuery);
-      const searchQuery = normalizeQuery(state.searchQuery);
+      const filterQuery = queryMode === 'filter' ? normalizeQuery(state.filterQuery) : '';
+      const highlightTerms = getHighlightTerms();
+      const highlightKey = queryMode + ':' + highlightTerms.join('\\u0000');
+      if (highlightKey !== previousHighlightKey) {
+        previousHighlightKey = highlightKey;
+        currentSearchMatchIndex = 0;
+        shouldRevealSearchMatch = highlightTerms.length > 0;
+      }
       const messages = filterQuery
         ? active.messages.filter(message => matchesFilterQuery(message.text, state.filterQuery))
         : active.messages;
+      let previousEndsWithNewline = true;
+      let matchIndex = 0;
       for (const message of messages) {
         const span = document.createElement('span');
-        const matchesSearch = searchQuery && normalizeQuery(message.text).includes(searchQuery);
-        span.className = 'message ' + message.kind + (matchesSearch ? ' search-match' : '');
-        span.textContent = message.text;
+        const boundary = previousEndsWithNewline || message.text.startsWith('\\n') ? '' : '\\n';
+        const candidateText = boundary + message.text;
+        span.className = 'message ' + message.kind;
+        matchIndex = appendHighlightedText(span, candidateText, highlightTerms, matchIndex);
         fragment.appendChild(span);
+        previousEndsWithNewline = message.text.endsWith('\\n');
       }
       consoleView.replaceChildren(fragment);
-      const firstMatch = consoleView.querySelector('.search-match');
-      if (firstMatch) {
-        firstMatch.scrollIntoView({ block: 'center' });
-      } else {
-        consoleView.scrollTop = consoleView.scrollHeight;
+      const matches = [...consoleView.querySelectorAll('.search-hit')];
+      if (matches.length === 0) {
+        currentSearchMatchIndex = 0;
+      } else if (currentSearchMatchIndex >= matches.length) {
+        currentSearchMatchIndex = matches.length - 1;
       }
+      renderSearchControls(matches.length);
+      renderScrollMarkers(matches);
+      const currentMatch = matches[currentSearchMatchIndex];
+      if (shouldRevealSearchMatch && currentMatch) {
+        currentMatch.classList.add('current');
+        currentMatch.scrollIntoView({ block: 'center' });
+        shouldRevealSearchMatch = false;
+      } else if (wasNearBottom) {
+        consoleView.scrollTop = consoleView.scrollHeight;
+      } else {
+        consoleView.scrollTop = previousScrollTop;
+      }
+      if (!shouldRevealSearchMatch && currentMatch) {
+        currentMatch.classList.add('current');
+      }
+      updateCurrentScrollMarker();
+    }
+
+    function isConsoleNearBottom() {
+      return consoleView.scrollHeight - consoleView.scrollTop - consoleView.clientHeight < 24;
+    }
+
+    function appendHighlightedText(container, text, terms, startIndex) {
+      if (terms.length === 0) {
+        container.textContent = text;
+        return startIndex;
+      }
+      const normalizedText = normalizeQuery(text);
+      let cursor = 0;
+      let matchIndex = startIndex;
+      while (cursor < text.length) {
+        const match = findNextHighlightMatch(normalizedText, terms, cursor);
+        if (!match) {
+          container.append(document.createTextNode(text.slice(cursor)));
+          break;
+        }
+        const foundAt = match.index;
+        if (foundAt > cursor) {
+          container.append(document.createTextNode(text.slice(cursor, foundAt)));
+        }
+        const hit = document.createElement('mark');
+        hit.className = 'search-hit';
+        hit.dataset.matchIndex = String(matchIndex);
+        hit.textContent = text.slice(foundAt, foundAt + match.length);
+        container.append(hit);
+        cursor = foundAt + match.length;
+        matchIndex += 1;
+      }
+      return matchIndex;
+    }
+
+    function findNextHighlightMatch(normalizedText, terms, startIndex) {
+      let nextMatch;
+      for (const term of terms) {
+        const index = normalizedText.indexOf(term, startIndex);
+        if (index === -1) {
+          continue;
+        }
+        if (!nextMatch || index < nextMatch.index || (index === nextMatch.index && term.length > nextMatch.length)) {
+          nextMatch = { index, length: term.length };
+        }
+      }
+      return nextMatch;
+    }
+
+    function renderSearchControls(matchCount) {
+      const showSearchControls = getHighlightTerms().length > 0;
+      searchCount.textContent = showSearchControls ? (matchCount === 0 ? '0/0' : (currentSearchMatchIndex + 1) + '/' + matchCount) : '';
+      searchCount.style.visibility = showSearchControls ? 'visible' : 'hidden';
+      previousSearchMatch.disabled = !showSearchControls || matchCount === 0;
+      nextSearchMatch.disabled = !showSearchControls || matchCount === 0;
+    }
+
+    function renderScrollMarkers(matches) {
+      scrollMarkers.replaceChildren();
+      if (getHighlightTerms().length === 0 || matches.length === 0) {
+        return;
+      }
+      const scrollHeight = Math.max(1, consoleView.scrollHeight);
+      for (const match of matches) {
+        const marker = document.createElement('div');
+        marker.className = 'scroll-marker';
+        marker.dataset.matchIndex = match.dataset.matchIndex || '';
+        marker.style.top = Math.min(99, Math.max(0, (match.offsetTop / scrollHeight) * 100)) + '%';
+        scrollMarkers.append(marker);
+      }
+    }
+
+    function updateCurrentScrollMarker() {
+      for (const marker of scrollMarkers.querySelectorAll('.scroll-marker')) {
+        marker.classList.toggle('current', marker.dataset.matchIndex === String(currentSearchMatchIndex));
+      }
+    }
+
+    function moveSearchMatch(direction) {
+      if (getHighlightTerms().length === 0) {
+        return;
+      }
+      const matches = consoleView.querySelectorAll('.search-hit');
+      if (matches.length === 0) {
+        return;
+      }
+      currentSearchMatchIndex = (currentSearchMatchIndex + direction + matches.length) % matches.length;
+      shouldRevealSearchMatch = true;
+      render();
+    }
+
+    function getHighlightTerms() {
+      if (queryMode === 'filter') {
+        return parseFilterQuery(state.filterQuery).include;
+      }
+      const query = normalizeQuery(state.searchQuery);
+      return query ? [query] : [];
     }
 
     function renderQueryControls() {
@@ -1254,7 +1436,6 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
         queryInput.value = value;
       }
       queryInput.placeholder = queryMode === 'filter' ? 'Filter (for example text, !exclude)' : 'Search';
-      queryModeIcon.replaceChildren(createIcon(queryMode === 'filter' ? 'filter' : 'search'));
       filterToggle.classList.toggle('active', queryMode === 'filter');
       filterToggle.title = queryMode === 'filter' ? 'Switch to Search' : 'Switch to Filter';
     }
@@ -1442,6 +1623,23 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
 
     function matchesFilterQuery(text, query) {
       const normalizedText = normalizeQuery(text);
+      const filter = parseFilterQuery(query);
+      for (const term of filter.exclude) {
+        if (normalizedText.includes(term)) {
+          return false;
+        }
+      }
+      for (const term of filter.include) {
+        if (!normalizedText.includes(term)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function parseFilterQuery(query) {
+      const include = [];
+      const exclude = [];
       const terms = String(query || '')
         .split(/[\\s,]+/)
         .map(term => term.trim().toLowerCase())
@@ -1449,16 +1647,14 @@ function buildDebugConsoleHtml(webview: vscode.Webview, extensionUri: vscode.Uri
       for (const term of terms) {
         if (term.startsWith('!')) {
           const excluded = term.slice(1);
-          if (excluded && normalizedText.includes(excluded)) {
-            return false;
+          if (excluded) {
+            exclude.push(excluded);
           }
-          continue;
-        }
-        if (!normalizedText.includes(term)) {
-          return false;
+        } else {
+          include.push(term);
         }
       }
-      return true;
+      return { include, exclude };
     }
 
     setInterval(() => {
@@ -1480,6 +1676,8 @@ function createVscodeIconUris(webview: vscode.Webview, extensionUri: vscode.Uri)
     'debug-restart',
     'debug-start',
     'debug-stop',
+    'chevron-down',
+    'chevron-up',
     'close',
     'filter',
     'go-to-file',
